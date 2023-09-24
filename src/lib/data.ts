@@ -1,0 +1,123 @@
+import codes from "./codes.js";
+import db from "./db.js";
+import { APIError } from "./errors.js";
+import type { Attribute, Character, Guild, User, UserGuild } from "./types.js";
+
+const baseUser = (id: string, observer?: boolean, roles?: string[]): User => ({
+    id,
+    guilds: {},
+    roles: roles ?? [],
+    observer: observer ?? false,
+    owner: false,
+    advisor: false,
+    voter: false,
+    council: false,
+    staff: false,
+});
+
+const baseUserGuild = (): UserGuild => ({ owner: false, advisor: false, voter: false, council: false, staff: false, roles: [] });
+
+export default {
+    async getUser(id: string): Promise<User> {
+        const entry = (await db.users.findOne({ id })) as unknown as User;
+        if (!entry) return { id, guilds: {}, roles: [], observer: false, owner: false, advisor: false, voter: false, council: false, staff: false };
+
+        const user = baseUser(entry.id, entry.observer, entry.roles);
+
+        for (const guild of await this.getGuilds()) {
+            const get = () => (user.guilds[guild.id] ??= baseUserGuild());
+            let council = false;
+
+            for (const key of ["owner", "advisor", "voter"] as const)
+                if (guild[key] === id) {
+                    const x = get();
+                    x[key] = user[key] = true;
+                    council = true;
+                }
+
+            if (council) {
+                const x = get();
+                x.council = user.council = true;
+            }
+
+            const u = guild.users[id];
+
+            if (u?.staff) {
+                const x = get();
+                x.staff = user.staff = true;
+            }
+        }
+
+        return user;
+    },
+    async getUsers(): Promise<User[]> {
+        const users: Record<string, User> = {};
+
+        for (const entry of await db.users.find().toArray()) {
+            users[entry.id] = baseUser(entry.id, entry.observer, entry.roles);
+        }
+
+        for (const guild of await this.getGuilds()) {
+            const gu = (id: string) => [(users[id] ??= baseUser(id)), (users[id].guilds[guild.id] ??= baseUserGuild())];
+
+            for (const key of ["owner", "advisor", "voter"] as const)
+                if (guild[key]) {
+                    const [x, y] = gu(guild[key]!);
+
+                    x[key] = y[key] = x.council = y.council = true;
+                }
+
+            for (const [id, val] of Object.entries(guild.users)) {
+                const [x, y] = gu(id);
+
+                if (val.staff) {
+                    x.staff = y.staff = true;
+                }
+            }
+        }
+
+        const array = Object.values(users);
+
+        return array;
+    },
+    async getGuild(id: string): Promise<Guild> {
+        const guild = (await db.guilds.findOne({ id })) as unknown as Guild;
+        if (!guild) throw new APIError(404, codes.MISSING_GUILD, `No guild exists with ID ${id}.`);
+
+        guild.voter = guild.delegated ? guild.advisor || guild.owner : guild.owner;
+        guild.users ??= {};
+        return guild;
+    },
+    async getGuilds(): Promise<Guild[]> {
+        const guilds = (await db.guilds.find().toArray()) as unknown as Guild[];
+
+        for (const guild of guilds) {
+            guild.voter = guild.delegated ? guild.advisor || guild.owner : guild.owner;
+            guild.users ??= {};
+        }
+
+        return guilds;
+    },
+    async getCharacter(id: string): Promise<Character> {
+        const character = (await db.characters.findOne({ id })) as unknown as Character;
+        if (!character) throw new APIError(404, codes.MISSING_CHARACTER, `No character exists with ID ${id}.`);
+
+        character.attributes ??= {};
+        return character;
+    },
+    async getCharacters(): Promise<Character[]> {
+        const characters = (await db.characters.find().toArray()) as unknown as Character[];
+        for (const character of characters) character.attributes ??= {};
+
+        return characters;
+    },
+    async getAttribute(type: string, id: string): Promise<Attribute> {
+        const attribute = (await db.attributes.findOne({ type, id })) as unknown as Attribute;
+        if (!attribute) throw new APIError(404, codes.MISSING_ATTRIBUTE, `No attribute exists with type ${type} and ID ${id}.`);
+
+        return attribute;
+    },
+    async getAttributes(): Promise<Attribute[]> {
+        return (await db.attributes.find().toArray()) as unknown as Attribute[];
+    },
+};

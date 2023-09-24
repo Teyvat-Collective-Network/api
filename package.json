@@ -6,7 +6,13 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@bogeychan/elysia-logger": "^0.0.10",
+    "@elysiajs/bearer": "^0.7.0",
+    "@elysiajs/jwt": "^0.7.0",
+    "@elysiajs/swagger": "^0.7.2",
+    "elysia": "latest",
+    "mongodb": "^6.1.0",
+    "pino-pretty": "^10.2.0"
   },
   "devDependencies": {
     "bun-types": "latest"
