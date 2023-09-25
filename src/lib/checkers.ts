@@ -1,6 +1,5 @@
 import codes from "./codes.js";
 import data from "./data.js";
-import db from "./db.js";
 import { APIError } from "./errors.js";
 import { User } from "./types.js";
 

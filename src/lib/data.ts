@@ -37,7 +37,7 @@ export default {
 
             if (council) {
                 const x = get();
-                x.council = user.council = true;
+                x.council = user.council = x.staff = user.staff = true;
             }
 
             const u = guild.users[id];
@@ -64,7 +64,7 @@ export default {
                 if (guild[key]) {
                     const [x, y] = gu(guild[key]!);
 
-                    x[key] = y[key] = x.council = y.council = true;
+                    x[key] = y[key] = x.council = y.council = x.staff = y.staff = true;
                 }
 
             for (const [id, val] of Object.entries(guild.users)) {

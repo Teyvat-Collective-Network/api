@@ -24,6 +24,8 @@ export default (app: App) =>
                         `),
                     },
                     response: t.Object({
+                        created: t.Integer({ description: "The millisecond timestamp of when the token was signed." }),
+                        expires: t.Optional(t.Integer({ description: "The millisecond timestamp of when the token expires, if it does." })),
                         id: t.String({ ...schemas.snowflake, description: "The ID of the authenticated user." }),
                         scopes: t.Array(t.String(), { description: "The scopes available to this API token." }),
                     }),

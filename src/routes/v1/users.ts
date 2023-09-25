@@ -1,5 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../index.js";
+import bot from "../../lib/bot.js";
 import { hasScope, isObserver, isOwner, isSignedIn } from "../../lib/checkers.js";
 import data from "../../lib/data.js";
 import db from "../../lib/db.js";
@@ -31,7 +32,7 @@ export default (app: App) =>
             .get(
                 "/me",
                 async ({ user }) => {
-                    return await data.getUser(user!.id);
+                    return { tag: await bot(`GET /tag/${user!.id}`), ...(await data.getUser(user!.id)) };
                 },
                 {
                     beforeHandle: [isSignedIn],
@@ -43,7 +44,10 @@ export default (app: App) =>
                             returned by \`GET /v1/users\`.
                         `),
                     },
-                    response: schemas.user,
+                    response: t.Object({
+                        tag: t.String({ description: "Your Discord tag." }),
+                        ...schemas.user.properties,
+                    }),
                 },
             )
             .get(

@@ -1,19 +1,22 @@
 import { logger } from "@bogeychan/elysia-logger";
 import { bearer } from "@elysiajs/bearer";
+import cors from "@elysiajs/cors";
 import jwt from "@elysiajs/jwt";
+import swagger from "@elysiajs/swagger";
 import { Elysia } from "elysia";
 import PinoPretty from "pino-pretty";
 import codes from "./lib/codes.js";
 import data from "./lib/data.js";
 import db, { connect } from "./lib/db.js";
 import { APIError } from "./lib/errors.js";
+import setup from "./lib/setup.js";
 import { stripMongoIds } from "./lib/utils.js";
 import routes from "./routes/index.js";
-import swagger from "@elysiajs/swagger";
-import setup from "./lib/setup.js";
 
 await connect();
+
 const app = new Elysia()
+    .use(cors())
     .use(
         swagger({
             documentation: {
@@ -29,7 +32,7 @@ const app = new Elysia()
                 components: { securitySchemes: { bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } } },
                 security: [{ bearerAuth: [] }],
             },
-            exclude: ["/docs", "/docs/json"],
+            exclude: ["/", "/docs", "/docs/json"],
             path: "/docs",
         }),
     )
