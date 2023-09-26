@@ -34,3 +34,12 @@ export function hasScope(scope: string) {
         }
     };
 }
+
+export function checkPermissions(
+    check: ((user: User) => boolean) | ((user: User) => Promise<boolean>),
+    error: string | ((user: User) => string) | ((user: User) => Promise<string>) = "Permission denied.",
+) {
+    return async function ({ user }: any) {
+        if (!(await check(user))) throw new APIError(403, codes.FORBIDDEN, typeof error === "string" ? error : await error(user));
+    };
+}

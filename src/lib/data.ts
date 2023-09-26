@@ -1,7 +1,7 @@
 import codes from "./codes.js";
 import db from "./db.js";
 import { APIError } from "./errors.js";
-import type { Attribute, Character, Guild, User, UserGuild } from "./types.js";
+import type { Attribute, CalendarEvent, Character, Guild, User, UserGuild } from "./types.js";
 
 const baseUser = (id: string, observer?: boolean, roles?: string[]): User => ({
     id,
@@ -119,5 +119,16 @@ export default {
     },
     async getAttributes(): Promise<Attribute[]> {
         return (await db.attributes.find().toArray()) as unknown as Attribute[];
+    },
+    async getEvents(limit: boolean = true): Promise<CalendarEvent[]> {
+        return (await db.events
+            .find(limit ? { start: { $lte: Date.now() + 30 * 24 * 60 * 60 * 1000 }, end: { $gte: Date.now() - 3 * 24 * 60 * 60 * 1000 } } : {})
+            .toArray()) as unknown as CalendarEvent[];
+    },
+    async getEvent(id: number): Promise<CalendarEvent> {
+        const event = (await db.events.findOne({ id })) as unknown as CalendarEvent;
+        if (!event) throw new APIError(404, codes.MISSING_EVENT, `No event exists with ID ${id}.`);
+
+        return event;
     },
 };

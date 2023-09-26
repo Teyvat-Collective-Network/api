@@ -68,4 +68,13 @@ export default {
         name: t.String({ minLength: 1, maxLength: 64, description: "The name of the attribute." }),
         emoji: t.String({ minLength: 1, maxLength: 64, description: "The emoji associated with the attribute." }),
     }),
+    event: t.Object({
+        id: t.Integer({ description: "The ID of the event." }),
+        owner: snowflake("The Discord ID of the owner (author) of this event."),
+        start: t.Integer({ description: "The millisecond timestamp of the event's start." }),
+        end: t.Integer({ description: "The millisecond timestamp of the event's end." }),
+        title: t.String({ minLength: 1, maxLength: 256, description: "The event's title." }),
+        body: t.String({ minLength: 1, maxLength: 4096, description: "The event's body (supports markdown)." }),
+        invites: t.Array(t.String({ minLength: 1, maxLength: 32 }), { maxItems: 16, description: "An array of invite codes to display for this event." }),
+    }),
 };

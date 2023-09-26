@@ -11,6 +11,7 @@ enum codes {
     MISSING_GUILD,
     MISSING_CHARACTER,
     MISSING_ATTRIBUTE,
+    MISSING_EVENT,
 }
 
 export default codes;

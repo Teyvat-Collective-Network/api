@@ -19,3 +19,8 @@ const db = new Proxy(
 ) as Record<string, Collection<Document>>;
 
 export default db;
+
+export async function autoinc(sequence: string): Promise<number> {
+    const doc = await db.counters.findOneAndUpdate({ sequence }, { $inc: { value: 1 } }, { upsert: true });
+    return (doc?.value ?? 0) + 1;
+}

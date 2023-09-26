@@ -49,3 +49,13 @@ export type Attribute = {
     name: string;
     emoji: string;
 };
+
+export type CalendarEvent = {
+    id: number;
+    owner: string;
+    start: number;
+    end: number;
+    title: string;
+    body: string;
+    invites: string[];
+};
