@@ -14,7 +14,11 @@ export default async function (route: string, body?: any) {
     let req: Response;
 
     try {
-        req = await fetch(`${Bun.env.DISCORD_INTERFACE}${path}`, { method, body: JSON.stringify(body) });
+        req = await fetch(`${Bun.env.DISCORD_INTERFACE}${path}`, {
+            method,
+            headers: body ? { "Content-Type": "application/json" } : {},
+            body: body ? JSON.stringify(body) : body,
+        });
     } catch {
         throw new APIError(503, codes.BOT_OFFLINE, "The Discord bot is offline.");
     }

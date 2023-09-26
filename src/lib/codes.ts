@@ -1,5 +1,6 @@
 enum codes {
     NOT_FOUND = 1,
+    NOT_IMPLEMENTED,
     INTERNAL_SERVER_ERROR,
     UNAUTHORIZED,
     FORBIDDEN,

@@ -62,13 +62,15 @@ const app = new Elysia()
     .onAfterHandle(({ response }) => stripMongoIds(response))
     .error({ API_ERROR: APIError })
     .onError(({ code, error, log, set }) => {
+        if (log?.error) log.error(error);
+        else console.error(error);
+
         switch (code) {
             case "API_ERROR":
                 set.status = error.status;
                 return { code: error.errorCode, message: error.message };
             case "INTERNAL_SERVER_ERROR":
             case "UNKNOWN":
-                log.error(error);
                 set.status = 500;
                 return { code: codes.INTERNAL_SERVER_ERROR, message: `Internal server error: ${error.message}` };
             case "NOT_FOUND":
