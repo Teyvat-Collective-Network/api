@@ -105,7 +105,10 @@ export default (app: App) =>
                 },
                 {
                     beforeHandle: [isSignedIn, hasScope("auth/key")],
-                    body: t.Object({ maxage: t.Integer({ minimum: 0, default: 24 * 60 * 60 * 1000 }), scopes: t.Array(t.String(), { default: ["all"] }) }),
+                    body: t.Object({
+                        maxage: t.Integer({ minimum: 0, default: 24 * 60 * 60 * 1000, error: "API key max age must be non-negative." }),
+                        scopes: t.Array(t.String(), { default: ["all"] }),
+                    }),
                     detail: {
                         tags: ["V1"],
                         summary: "Create a new API token.",

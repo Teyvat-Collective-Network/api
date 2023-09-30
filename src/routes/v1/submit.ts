@@ -72,40 +72,56 @@ export default (app: App) =>
                         description:
                             "This must be true, indicating agreement to follow the network events channel publicly to cross-promote TCN server events and post crucial TCN announcements.",
                     }),
-                    mascot: t.String({ description: "Your server's mascot character." }),
+                    mascot: t.String({
+                        minLength: 1,
+                        maxLength: 64,
+                        description: "Your server's mascot character.",
+                        error: "Mascot character must be 1-64 characters.",
+                    }),
                     role: t.String({ description: "Your role in the server (owner, admin, mod, or other)." }),
-                    roleother: t.Optional(t.String({ description: "Your role in the server, if other was specified for role." })),
+                    roleother: t.Optional(
+                        t.String({
+                            maxLength: 32,
+                            description: "Your role in the server, if other was specified for role.",
+                            error: "Role (when other is specified) must be 1-32 characters.",
+                        }),
+                    ),
                     ownerid: t.Optional(schemas.snowflake("The Discord ID of the server's owner, if it is not you.")),
-                    invite: t.String({ description: "An invite link or code to your server." }),
+                    invite: t.String({
+                        minLength: 1,
+                        maxLength: 64,
+                        description: "An invite link or code to your server.",
+                        error: "Invite must be 1-64 characters.",
+                    }),
                     nsfw: t.String({ description: "Your server's NSFW status (private = role-locked NSFW, public = non-locked NSFW, no = fully SFW)." }),
                     experience: t.String({
                         maxLength: 1024,
                         description: "Your prior experience running a Discord server or similar community in a position of management.",
-                        error: "The experience field cannot exceed 1024 characters.",
+                        error: "Experience must be 0-1024 characters.",
                     }),
 
                     shortgoals: t.String({
                         minLength: 1,
                         maxLength: 1024,
                         description: "Your short-term goals or ideas for your server.",
-                        error: "The short goals field is required and cannot exceed 1024 characters.",
+                        error: "Short goals must be 1-1024 characters.",
                     }),
                     longgoals: t.String({
                         minLength: 1,
                         maxLength: 1024,
                         description: "Your long-term goals or ideas for your server.",
-                        error: "The long goals field is required and cannot exceed 1024 characters.",
+                        error: "Long goals must be 1-1024 characters.",
                     }),
                     history: t.String({
                         minLength: 1,
                         maxLength: 1024,
                         description: "A rough outline of your server's history (former identities, your inspiration to start the server, etc.).",
-                        error: "The history field is required and cannot exceed 1024 characters.",
+                        error: "History must be 1-1024 characters.",
                     }),
                     additional: t.String({
                         maxLength: 1024,
                         description: "Any additional questions or comments you'd like to add.",
-                        error: "The additional comments field cannot exceed 1024 characters.",
+                        error: "Additional comments must be 0-1024 characters.",
                     }),
                 }),
                 detail: {

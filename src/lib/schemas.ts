@@ -1,7 +1,15 @@
 import { t } from "elysia";
 
-const snowflake = (description?: string) => t.String({ pattern: "^[1-9][0-9]{16,19}$", default: "1234567890987654321", description });
-const id = (description?: string) => t.String({ pattern: "^[a-z-]{1,32}$", default: "id", description });
+const snowflake = (description?: string) =>
+    t.String({
+        pattern: "^[1-9][0-9]{16,19}$",
+        default: "1234567890987654321",
+        description,
+        error: "Invalid ID: must be a valid Discord snowflake (17-20 digit number).",
+    });
+
+const id = (description?: string) =>
+    t.String({ pattern: "^[a-z-]{1,32}$", default: "id", description, error: "Invalid ID: must be 1-32 lowercase letters or dashes." });
 
 const objects = {
     banshareSettings: {
@@ -13,7 +21,8 @@ const objects = {
             minimum: 0,
             maximum: 0b11111111,
             description:
-                "Which banshares to automatically execute as an 8-bit integer representing bitflags. Bit 1 for P0 banshares against non-members, bit 2 for P1 against non-members, etc., bit 5 for P0 against members, etc., bit 8 for DM against members.",
+                "Which banshares to automatically execute as an 8-bit bitfield. Bit 1 for P0 banshares against non-members, bit 2 for P1 against non-members, etc., bit 5 for P0 against members, etc., bit 8 for DM against members.",
+            error: "Bitfield must be 8 bits long (0x00 to 0xFF).",
         }),
     },
 };
@@ -51,7 +60,7 @@ export default {
     }),
     guild: t.Object({
         id: snowflake("The guild's Discord ID."),
-        name: t.String({ minLength: 1, maxLength: 64, description: "The TCN name of the guild." }),
+        name: t.String({ minLength: 1, maxLength: 64, description: "The TCN name of the guild.", error: "Guild name must be 1-64 characters." }),
         mascot: id("The guild's mascot character ID."),
         invite: t.String({ description: "An invite code pointing to the guild." }),
         owner: snowflake("The Discord ID of the guild's owner."),
@@ -71,26 +80,42 @@ export default {
     }),
     character: t.Object({
         id: id("The character's ID."),
-        name: t.String({ minLength: 1, maxLength: 64, description: "The character's full name." }),
+        name: t.String({ minLength: 1, maxLength: 64, description: "The character's full name.", error: "Character name must be 1-64 characters." }),
         short: t.Optional(
-            t.Nullable(t.String({ minLength: 1, maxLength: 64, description: "The character's short name (if different from their full name)." })),
+            t.Nullable(
+                t.String({
+                    minLength: 1,
+                    maxLength: 64,
+                    description: "The character's short name (if different from their full name).",
+                    error: "Character short name must be 1-64 characters.",
+                }),
+            ),
         ),
         attributes: t.Object({}, { additionalProperties: t.String(), description: "An object containing the character's additional attributes." }),
     }),
     attribute: t.Object({
         type: id("The attribute's type (used as the key in the character attributes object)"),
         id: id("The attribute's ID."),
-        name: t.String({ minLength: 1, maxLength: 64, description: "The name of the attribute." }),
-        emoji: t.String({ minLength: 1, maxLength: 64, description: "The emoji associated with the attribute." }),
+        name: t.String({ minLength: 1, maxLength: 64, description: "The name of the attribute.", error: "Attribute name must be 1-64 characters." }),
+        emoji: t.String({
+            minLength: 1,
+            maxLength: 64,
+            description: "The emoji associated with the attribute.",
+            error: "Attribute emoji must be 1-64 characters.",
+        }),
     }),
     event: t.Object({
         id: t.Integer({ description: "The ID of the event." }),
         owner: snowflake("The Discord ID of the owner (author) of this event."),
         start: t.Integer({ description: "The millisecond timestamp of the event's start." }),
         end: t.Integer({ description: "The millisecond timestamp of the event's end." }),
-        title: t.String({ minLength: 1, maxLength: 256, description: "The event's title." }),
-        body: t.String({ minLength: 1, maxLength: 4096, description: "The event's body (supports markdown)." }),
-        invites: t.Array(t.String({ minLength: 1, maxLength: 32 }), { maxItems: 16, description: "An array of invite codes to display for this event." }),
+        title: t.String({ minLength: 1, maxLength: 256, description: "The event's title.", error: "Event title must be 1-256 characters." }),
+        body: t.String({ minLength: 1, maxLength: 4096, description: "The event's body (supports markdown).", error: "Event body must be 1-4096 characters." }),
+        invites: t.Array(t.String({ minLength: 1, maxLength: 32, error: "Invites must be 1-32 characters." }), {
+            maxItems: 16,
+            description: "An array of invite codes to display for this event.",
+            error: "Invite array must contain 0-16 items.",
+        }),
     }),
     banshareCreate: t.Object({
         ids: t.String({
@@ -100,13 +125,13 @@ export default {
             minLength: 1,
             maxLength: 498,
             description: "The reason for the banshare, which is also put in autoban audit log reasons.",
-            error: "The reason field is required and cannot exceed 498 characters.",
+            error: "Reason must be 1-498 characters.",
         }),
         evidence: t.String({
             minLength: 1,
             maxLength: 1000,
             description: "Evidence for the banshare, which should be enough for an uninvolved staff member to determine the banshare as valid.",
-            error: "The evidence field is required and cannot exceed 1000 characters.",
+            error: "Evidence must be 1-1000 characters.",
         }),
         server: snowflake("The ID of the guild from which the banshare is being submitted."),
         severity: t.String({ description: "P0, P1, P2, or DM." }),

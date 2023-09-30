@@ -304,7 +304,12 @@ export default (app: App) =>
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
                     afterHandle: [ratelimitApply("edit-banshare")],
                     body: t.Object({
-                        explanation: t.String({ description: "Why the banshare is being rescinded and any further explanation." }),
+                        explanation: t.String({
+                            minLength: 1,
+                            maxLength: 1800,
+                            description: "Why the banshare is being rescinded and any further explanation.",
+                            error: "Banshare rescind explanation must be 1-1800 characters.",
+                        }),
                     }),
                     detail: {
                         tags: ["V1"],
@@ -656,7 +661,12 @@ export default (app: App) =>
                     beforeHandle: [isSignedIn, hasScope("banshares/report"), ratelimitCheck("report-banshare", 15000, 1)],
                     afterHandle: [ratelimitApply("report-banshare")],
                     body: t.Object({
-                        reason: t.String({ description: "The reason for the report." }),
+                        reason: t.String({
+                            minLength: 1,
+                            maxLength: 1800,
+                            description: "The reason for the report.",
+                            error: "Banshare report reason must be 1-1800 characters.",
+                        }),
                     }),
                     detail: {
                         tags: ["V1"],
