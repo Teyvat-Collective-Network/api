@@ -3,7 +3,7 @@ import { APIError } from "./errors.js";
 import logger from "./logger.js";
 import { stripMongoIds } from "./utils.js";
 
-export default async function (token: string, route: string, body?: any) {
+export default async function (token: string | null, route: string, body?: any) {
     let request = false;
 
     if (route.startsWith("!")) {
@@ -20,7 +20,7 @@ export default async function (token: string, route: string, body?: any) {
     try {
         req = await fetch(`${Bun.env.DISCORD_INTERFACE}${path}`, {
             method,
-            headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { "Content-Type": "application/json" } : {}) },
             body: body ? JSON.stringify(stripMongoIds(body)) : body,
         });
     } catch {
