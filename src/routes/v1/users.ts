@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { App } from "../../index.js";
+import { App } from "../../lib/app.js";
 import bot from "../../lib/bot.js";
 import { hasScope, isObserver, isOwner, isSignedIn } from "../../lib/checkers.js";
 import data from "../../lib/data.js";
@@ -31,8 +31,8 @@ export default (app: App) =>
             )
             .get(
                 "/me",
-                async ({ user }) => {
-                    return { tag: await bot(`GET /tag/${user!.id}`), ...(await data.getUser(user!.id)) };
+                async ({ bearer, user }) => {
+                    return { tag: await bot(bearer!, `GET /users/${user!.id}/tag`), ...(await data.getUser(user!.id)) };
                 },
                 {
                     beforeHandle: [isSignedIn],

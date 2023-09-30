@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { App } from "../../index.js";
+import { App } from "../../lib/app.js";
 import { checkPermissions, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
@@ -52,7 +52,7 @@ export default (app: App) =>
                     return id;
                 },
                 {
-                    beforeHandle: [isSignedIn, checkPermissions((user) => user.council, "Only council members may create events on the calendar.")],
+                    beforeHandle: [isSignedIn, checkPermissions(({ user }) => user.council, "Only council members may create events on the calendar.")],
                     body: t.Object(Object.fromEntries(Object.entries(schemas.event.properties).filter(([x]) => x !== "id" && x !== "owner"))),
                     detail: {
                         tags: ["V1"],

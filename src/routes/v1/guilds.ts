@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { App } from "../../index.js";
+import { App } from "../../lib/app.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
@@ -49,7 +49,7 @@ export default (app: App) =>
             )
             .post(
                 "/:id",
-                async ({ body, params: { id } }) => {
+                async ({ bearer, body, params: { id } }) => {
                     if ((await db.guilds.countDocuments({ id })) > 0) throw new APIError(409, codes.DUPLICATE, `A guild already exists with ID ${id}.`);
 
                     if (body.delegated && !body.advisor)
@@ -57,7 +57,7 @@ export default (app: App) =>
 
                     await data.getCharacter(body.mascot);
 
-                    const code = await validateInvite(body.invite, id);
+                    const code = await validateInvite(bearer!, body.invite, id);
 
                     await db.guilds.insertOne({
                         id,
@@ -96,7 +96,7 @@ export default (app: App) =>
             )
             .patch(
                 "/:id",
-                async ({ body, params: { id } }) => {
+                async ({ bearer, body, params: { id } }) => {
                     const guild = await data.getGuild(id);
 
                     const $set: any = {};
@@ -109,7 +109,7 @@ export default (app: App) =>
                         $set.mascot = body.mascot;
                     }
 
-                    if (body.invite) $set.invite = await validateInvite(body.invite, id);
+                    if (body.invite) $set.invite = await validateInvite(bearer!, body.invite, id);
                     if (body.owner) $set.owner = body.owner;
 
                     if (body.advisor !== undefined)
@@ -154,7 +154,9 @@ export default (app: App) =>
                 "/:id",
                 async ({ params: { id } }) => {
                     await data.getGuild(id);
+
                     await db.guilds.deleteOne({ id });
+                    await db.banshare_settings.deleteOne({ guild: id });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/delete")],

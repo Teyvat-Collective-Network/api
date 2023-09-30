@@ -4,6 +4,8 @@ export function stripMongoIds(obj: any) {
         if ("_id" in obj) delete obj._id;
         Object.values(obj).forEach(stripMongoIds);
     }
+
+    return obj;
 }
 
 export function trim(string: string) {

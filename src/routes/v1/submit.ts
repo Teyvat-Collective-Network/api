@@ -1,7 +1,7 @@
 import { t } from "elysia";
-import { App } from "../../index.js";
+import { App } from "../../lib/app.js";
 import bot from "../../lib/bot.js";
-import { isSignedIn } from "../../lib/checkers.js";
+import { hasScope, isSignedIn, ratelimitApply, ratelimitCheck } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
@@ -13,6 +13,7 @@ export default (app: App) =>
         app.post(
             "/apply",
             async ({
+                bearer,
                 body: {
                     observerchannelconsent,
                     observerauditconsent,
@@ -41,19 +42,20 @@ export default (app: App) =>
                 if (role === "other" && !roleother) abort("You must specify a role if you selected other as your role.");
                 if (role !== "owner" && !ownerid) abort("You must specify the server owner if you are not the owner.");
 
-                const code = await validateInvite(invite);
+                const code = await validateInvite(bearer!, invite);
 
                 if (!["private", "public", "no"].includes(nsfw)) abort("Invalid NSFW selection.");
 
                 if (role !== "owner") {
-                    const req = await bot(`!GET /tag/${ownerid}`);
+                    const req = await bot(bearer!, `!GET /users/${ownerid}/tag`);
                     if (!req.ok) abort("Invalid owner ID.");
                 }
 
-                await bot(`POST /apply`, { code, mascot, role, roleother, ownerid, nsfw, ...others, user: user!.id });
+                await bot(bearer!, `POST /apply`, { code, mascot, role, roleother, ownerid, nsfw, ...others, user: user!.id });
             },
             {
-                beforeHandle: [isSignedIn],
+                beforeHandle: [isSignedIn, hasScope("apply"), ratelimitCheck("apply", 300000, 1)],
+                afterHandle: [ratelimitApply("apply")],
                 body: t.Object({
                     observerchannelconsent: t.Boolean({
                         description:

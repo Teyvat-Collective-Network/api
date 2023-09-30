@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { App } from "../../index.js";
+import { App } from "../../lib/app.js";
 import data from "../../lib/data.js";
 import schemas from "../../lib/schemas.js";
 import { Attribute } from "../../lib/types.js";

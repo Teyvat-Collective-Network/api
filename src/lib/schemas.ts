@@ -1,7 +1,22 @@
 import { t } from "elysia";
 
-const snowflake = (description: string) => t.String({ pattern: "^\\d{17,20}$", default: "1234567890987654321", description });
-const id = (description: string) => t.String({ pattern: "^[a-z-]{1,32}$", default: "id", description });
+const snowflake = (description?: string) => t.String({ pattern: "^[1-9][0-9]{16,19}$", default: "1234567890987654321", description });
+const id = (description?: string) => t.String({ pattern: "^[a-z-]{1,32}$", default: "id", description });
+
+const objects = {
+    banshareSettings: {
+        channel: t.Nullable(snowflake("The ID of the channel to which to send banshares, or null to not send banshares.")),
+        blockdms: t.Boolean({ description: "If true, do not send DM scam banshares to this server." }),
+        nobutton: t.Boolean({ description: "If true, do not show the ban button on non-autobanned banshares." }),
+        daedalus: t.Boolean({ description: "If true, append banshares to Daedalus user history." }),
+        autoban: t.Integer({
+            minimum: 0,
+            maximum: 0b11111111,
+            description:
+                "Which banshares to automatically execute as an 8-bit integer representing bitflags. Bit 1 for P0 banshares against non-members, bit 2 for P1 against non-members, etc., bit 5 for P0 against members, etc., bit 8 for DM against members.",
+        }),
+    },
+};
 
 export default {
     snowflake,
@@ -76,5 +91,55 @@ export default {
         title: t.String({ minLength: 1, maxLength: 256, description: "The event's title." }),
         body: t.String({ minLength: 1, maxLength: 4096, description: "The event's body (supports markdown)." }),
         invites: t.Array(t.String({ minLength: 1, maxLength: 32 }), { maxItems: 16, description: "An array of invite codes to display for this event." }),
+    }),
+    banshareCreate: t.Object({
+        ids: t.String({
+            description: "A space-separated list of IDs. If absolutely needed, a URL (or other string) is acceptable, but `skipChecks` must be enabled.",
+        }),
+        reason: t.String({
+            minLength: 1,
+            maxLength: 498,
+            description: "The reason for the banshare, which is also put in autoban audit log reasons.",
+            error: "The reason field is required and cannot exceed 498 characters.",
+        }),
+        evidence: t.String({
+            minLength: 1,
+            maxLength: 1000,
+            description: "Evidence for the banshare, which should be enough for an uninvolved staff member to determine the banshare as valid.",
+            error: "The evidence field is required and cannot exceed 1000 characters.",
+        }),
+        server: snowflake("The ID of the guild from which the banshare is being submitted."),
+        severity: t.String({ description: "P0, P1, P2, or DM." }),
+        urgent: t.Boolean({ description: "If true, the alert will ping all observers to review the banshare urgently." }),
+        skipValidation: t.Boolean({ description: "Skip checking that the IDs point to valid users." }),
+        skipChecks: t.Boolean({ description: "Skip checking the format of the ID input entirely (also prevents autoban from working)." }),
+    }),
+    banshareResponse: t.Object({
+        message: snowflake("The ID of the message of the banshare in HQ."),
+        status: t.String({ description: "The status of the banshare (pending, rejected, published, rescinded)." }),
+        urgent: t.Boolean({ description: "If true, the alert pinged all observers to review the banshare urgently and will remind observers more often." }),
+        ids: t.String({
+            description: "The ID field of the banshare embed. This is most likely a space-separated list of IDs, but this should not be assumed.",
+        }),
+        idList: t.Array(snowflake(), { description: "An array of parsed user IDs. These may not necessarily be valid. This may be empty." }),
+        reason: t.String({ minLength: 1, maxLength: 498, description: "The reason for the banshare, which is also put in autoban audit log reasons." }),
+        evidence: t.String({ minLength: 1, maxLength: 1000, description: "Evidence for the banshare." }),
+        server: snowflake("The ID of the guild from which the banshare was submitted."),
+        severity: t.String({ description: "P0, P1, P2, or DM." }),
+        author: snowflake("The ID of the user who submitted the banshare."),
+        created: t.Integer({ description: "The millisecond timestamp of when the banshare was created." }),
+        reminded: t.Integer({
+            description: "The millisecond timestamp of when a reminder was last triggered for the banshare, which starts at the creation date.",
+        }),
+        publisher: t.Optional(snowflake("The ID of the user who published the banshare, if it is or was published.")),
+        rejecter: t.Optional(snowflake("The ID of the user who rejected the banshare, if it is rejected.")),
+        rescinder: t.Optional(snowflake("The ID of the user who rescinded the banshare, if it is rescinded.")),
+        explanation: t.Optional(t.String({ description: "The explanation for this banshare's rescinding, if it is rescinded." })),
+    }),
+    banshareSettings: t.Object(objects.banshareSettings),
+    banshareSettingsResponse: t.Object({
+        ...objects.banshareSettings,
+        guild: snowflake("The ID of the guild."),
+        logs: t.Array(snowflake(), { description: "An array of logging channel IDs." }),
     }),
 };

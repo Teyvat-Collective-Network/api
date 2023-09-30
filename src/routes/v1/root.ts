@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { App } from "../../index.js";
+import { App } from "../../lib/app.js";
 import db from "../../lib/db.js";
 import { trim } from "../../lib/utils.js";
 

@@ -59,3 +59,32 @@ export type CalendarEvent = {
     body: string;
     invites: string[];
 };
+
+export type Banshare = {
+    message: string;
+    status: string;
+    urgent: boolean;
+    ids: string;
+    idList: string[];
+    reason: string;
+    evidence: string;
+    server: string;
+    severity: string;
+    author: string;
+    created: number;
+    reminded: number;
+    publisher?: string;
+    rejecter?: string;
+    rescinder?: string;
+    explanation?: string;
+};
+
+export type BanshareSettings = {
+    guild: string;
+    channel: string | null;
+    logs: string[];
+    blockdms: boolean;
+    nobutton: boolean;
+    daedalus: boolean;
+    autoban: number;
+};

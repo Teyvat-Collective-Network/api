@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import { App } from "../../index.js";
+import { App } from "../../lib/app.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import db from "../../lib/db.js";
 import schemas from "../../lib/schemas.js";
