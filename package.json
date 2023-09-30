@@ -10,6 +10,7 @@
     "@elysiajs/jwt": "^0.7.0",
     "@elysiajs/swagger": "^0.7.2",
     "elysia": "latest",
+    "elysia-rate-limit": "^1.2.0",
     "mongodb": "^6.1.0",
     "pino": "^8.15.1",
     "pino-pretty": "^10.2.0"
