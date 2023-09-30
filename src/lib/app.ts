@@ -3,6 +3,7 @@ import cors from "@elysiajs/cors";
 import jwt from "@elysiajs/jwt";
 import swagger from "@elysiajs/swagger";
 import { Elysia } from "elysia";
+import { rateLimit } from "elysia-rate-limit";
 import codes from "./codes.js";
 import data from "./data.js";
 import db from "./db.js";
@@ -33,6 +34,9 @@ export const app = new Elysia()
     )
     .use(bearer())
     .use(jwt({ secret: Bun.env.JWT_SECRET! }))
+    .use(
+        rateLimit({ duration: 1000, max: 50, responseMessage: JSON.stringify({ code: codes.RATELIMIT, message: `50/s ratelimit reached; please back off.` }) }),
+    )
     .derive(async ({ bearer, jwt }) => {
         if (!bearer) return {};
 
