@@ -113,15 +113,16 @@ export default (app: App) =>
                     if (body.owner) $set.owner = body.owner;
 
                     if (body.advisor !== undefined)
-                        if (body.advisor === null) $unset.advisor = 0;
+                        if (body.advisor === null)
+                            if (body.delegated ?? guild.delegated)
+                                throw new APIError(400, codes.INVALID_BODY, "The advisor cannot be removed while delegation is enabled.");
+                            else $unset.advisor = 0;
                         else $set.advisor = body.advisor;
 
-                    if (body.delegated !== undefined) {
+                    if (body.delegated !== undefined)
                         if (body.delegated && ((!guild.advisor && !body.advisor) || body.advisor === null))
                             throw new APIError(400, codes.INVALID_BODY, "Delegation cannot be enabled if the guild has no advisor.");
-
-                        $set.delegated = body.delegated;
-                    }
+                        else $set.delegated = body.delegated;
 
                     await db.guilds.updateOne({ id }, { $set, $unset });
                 },

@@ -184,8 +184,8 @@ export default (app: App) =>
             )
             .put(
                 "/:id/staff/:guild",
-                async ({ body, params: { id, guild } }) => {
-                    await db.guilds.updateOne({ id: guild }, { $set: { [`users.${id}.staff`]: body.staff } });
+                async ({ body: { staff }, params: { id, guild } }) => {
+                    await db.guilds.updateOne({ id: guild }, { $set: { [`users.${id}.staff`]: staff } });
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],

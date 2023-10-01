@@ -7,6 +7,7 @@ import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
 import { trim } from "../../lib/utils.js";
 import { validateInvite } from "../../lib/validators.js";
+import db from "../../lib/db.js";
 
 export default (app: App) =>
     app.group("", (app) =>
@@ -51,7 +52,10 @@ export default (app: App) =>
                     if (!req.ok) abort("Invalid owner ID.");
                 }
 
-                await bot(bearer!, `POST /apply`, { code, mascot, role, roleother, ownerid, nsfw, ...others, user: user!.id });
+                const data = { code, mascot, role, roleother, ownerid, nsfw, ...others, user: user!.id };
+
+                await db.applications.insertOne(data);
+                await bot(bearer!, `POST /apply`, data);
             },
             {
                 beforeHandle: [isSignedIn, hasScope("apply"), ratelimitCheck("apply", 300000, 1)],

@@ -17,6 +17,21 @@ const baseUser = (id: string, observer?: boolean, roles?: string[]): User => ({
 
 const baseUserGuild = (): UserGuild => ({ owner: false, advisor: false, voter: false, council: false, staff: false, roles: [] });
 
+function formatGuild(guild: Guild): Guild {
+    guild.voter = guild.delegated ? guild.advisor || guild.owner : guild.owner;
+
+    guild.users ??= {};
+    guild.users[guild.owner] ??= { staff: true, roles: [] };
+    if (guild.advisor) guild.users[guild.advisor] ??= { staff: true, roles: [] };
+
+    for (const [id, user] of Object.entries(guild.users)) {
+        user.staff ||= [guild.owner, guild.advisor].includes(id);
+        user.roles ??= [];
+    }
+
+    return guild;
+}
+
 export default {
     async getUser(id: string): Promise<User> {
         const entry = (await db.users.findOne({ id })) as unknown as User;
@@ -42,11 +57,11 @@ export default {
 
             const u = guild.users[id];
 
-            if (u?.staff) {
-                const x = get();
-                x.staff = user.staff = true;
-            }
+            if (u?.staff) get().staff = user.staff = true;
+            if (u?.roles?.length) get().roles = u.roles;
         }
+
+        user.staff ||= user.council ||= user.observer;
 
         return user;
     },
@@ -77,6 +92,7 @@ export default {
         }
 
         const array = Object.values(users);
+        for (const user of array) user.staff ||= user.council ||= user.observer;
 
         return array;
     },
@@ -84,19 +100,11 @@ export default {
         const guild = (await db.guilds.findOne({ id })) as unknown as Guild;
         if (!guild) throw new APIError(404, codes.MISSING_GUILD, `No guild exists with ID ${id}.`);
 
-        guild.voter = guild.delegated ? guild.advisor || guild.owner : guild.owner;
-        guild.users ??= {};
-        return guild;
+        return formatGuild(guild);
     },
     async getGuilds(): Promise<Guild[]> {
         const guilds = (await db.guilds.find().toArray()) as unknown as Guild[];
-
-        for (const guild of guilds) {
-            guild.voter = guild.delegated ? guild.advisor || guild.owner : guild.owner;
-            guild.users ??= {};
-        }
-
-        return guilds;
+        return guilds.map(formatGuild);
     },
     async getCharacter(id: string): Promise<Character> {
         const character = (await db.characters.findOne({ id })) as unknown as Character;

@@ -101,7 +101,7 @@ export default (app: App) =>
                         }
 
                     await db.characters.updateOne({ id }, { $set, $unset });
-                    await db.guilds.updateMany({ mascot: id }, { $set: { mascot: body.id } });
+                    if (body.id) await db.guilds.updateMany({ mascot: id }, { $set: { mascot: body.id } });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/write")],

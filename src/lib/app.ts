@@ -35,7 +35,15 @@ export const app = new Elysia()
     .use(bearer())
     .use(jwt({ secret: Bun.env.JWT_SECRET! }))
     .use(
-        rateLimit({ duration: 1000, max: 50, responseMessage: JSON.stringify({ code: codes.RATELIMIT, message: `50/s ratelimit reached; please back off.` }) }),
+        rateLimit({
+            duration: 1000,
+            max: 50,
+            responseMessage: JSON.stringify({
+                code: codes.RATELIMIT,
+                message: `50/s ratelimit reached; please back off.`,
+            }),
+            generator: ({ headers }) => headers.get("Authorization") ?? JSON.stringify([...headers.entries()]),
+        }),
     )
     .derive(async ({ bearer, jwt }) => {
         if (!bearer) return {};
