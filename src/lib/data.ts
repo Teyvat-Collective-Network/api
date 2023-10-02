@@ -103,7 +103,7 @@ export default {
         return formatGuild(guild);
     },
     async getGuilds(): Promise<Guild[]> {
-        const guilds = (await db.guilds.find().toArray()) as unknown as Guild[];
+        const guilds = (await db.guilds.find().toArray()) as unknown[] as Guild[];
         return guilds.map(formatGuild);
     },
     async getCharacter(id: string): Promise<Character> {
@@ -114,7 +114,7 @@ export default {
         return character;
     },
     async getCharacters(): Promise<Character[]> {
-        const characters = (await db.characters.find().toArray()) as unknown as Character[];
+        const characters = (await db.characters.find().toArray()) as unknown[] as Character[];
         for (const character of characters) character.attributes ??= {};
 
         return characters;
@@ -126,12 +126,12 @@ export default {
         return attribute;
     },
     async getAttributes(): Promise<Attribute[]> {
-        return (await db.attributes.find().toArray()) as unknown as Attribute[];
+        return (await db.attributes.find().toArray()) as unknown[] as Attribute[];
     },
     async getEvents(limit: boolean = true): Promise<CalendarEvent[]> {
         return (await db.events
             .find(limit ? { start: { $lte: Date.now() + 30 * 24 * 60 * 60 * 1000 }, end: { $gte: Date.now() - 3 * 24 * 60 * 60 * 1000 } } : {})
-            .toArray()) as unknown as CalendarEvent[];
+            .toArray()) as unknown[] as CalendarEvent[];
     },
     async getEvent(id: number): Promise<CalendarEvent> {
         const event = (await db.events.findOne({ id })) as unknown as CalendarEvent;

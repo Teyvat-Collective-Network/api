@@ -88,3 +88,25 @@ export type BanshareSettings = {
     daedalus: boolean;
     autoban: number;
 };
+
+export type TCNDocEmbedData = {
+    embedTitle: string;
+    embedBody: string;
+    embedColor: number;
+    embedImage: string;
+    embedThumbnail: boolean;
+};
+
+export type TCNDoc = {
+    id: string;
+    official: boolean;
+    deleted: boolean;
+    author: string;
+    anon: boolean;
+    allowCouncil: boolean;
+    allowEveryone: boolean;
+    allowLoggedIn: boolean;
+    allowlist: string[];
+    title: string;
+    body: string;
+} & TCNDocEmbedData;

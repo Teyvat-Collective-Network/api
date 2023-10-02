@@ -19,6 +19,7 @@ enum codes {
     MISSING_EVENT,
     MISSING_BANSHARE,
     MISSING_CROSSPOST,
+    MISSING_DOCUMENT,
 }
 
 export default codes;

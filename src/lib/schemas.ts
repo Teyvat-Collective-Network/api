@@ -3,13 +3,51 @@ import { t } from "elysia";
 const snowflake = (description?: string) =>
     t.String({
         pattern: "^[1-9][0-9]{16,19}$",
-        default: "1234567890987654321",
+        default: "1012321234321232101",
         description,
         error: "Invalid ID: must be a valid Discord snowflake (17-20 digit number).",
     });
 
 const id = (description?: string) =>
     t.String({ pattern: "^[a-z-]{1,32}$", default: "id", description, error: "Invalid ID: must be 1-32 lowercase letters or dashes." });
+
+export const fields = {
+    docId: t.String({
+        minLength: 24,
+        maxLength: 24,
+        pattern: "^[A-Za-z0-9]+$",
+        description: "The unique ID of this document.",
+        default: "MKlOWWndmmrMBgOwUjmRv271",
+    }),
+};
+
+export const tcnDocEmbedData = {
+    embedTitle: t.String({
+        minLength: 1,
+        maxLength: 256,
+        description: "The title of the embed when the link to this document is posted in Discord.",
+        error: "Embed title must be 1-256 characters.",
+    }),
+    embedBody: t.String({
+        minLength: 1,
+        maxLength: 4096,
+        description: "The body of the embed when the link to this document is posted in Discord.",
+        error: "Embed body must be 1-4096 characters.",
+    }),
+    embedColor: t.Integer({
+        minimum: 0,
+        maximum: 0xffffff,
+        description: "The color of the embed when the link to this document is posted in Discord.",
+        error: "Embed color must be 0x000000-0xFFFFFF,",
+    }),
+    embedImage: t.String({
+        minLength: 0,
+        maxLength: 1024,
+        description: "The image shown in the embed when the link to this document is posted in Discord, if any.",
+        error: "Embed image link must be 0-1024 characters.",
+    }),
+    embedThumbnail: t.Boolean({ description: "Whether the embed image should appear as a thumbnail instead of a full-size image." }),
+};
 
 const objects = {
     banshareSettings: {
@@ -24,6 +62,18 @@ const objects = {
                 "Which banshares to automatically execute as an 8-bit bitfield. Bit 1 for P0 banshares against non-members, bit 2 for P1 against non-members, etc., bit 5 for P0 against members, etc., bit 8 for DM against members.",
             error: "Bitfield must be 8 bits long (0x00 to 0xFF).",
         }),
+    },
+    tcnDoc: {
+        deleted: t.Boolean({ description: "Whether this document is deleted." }),
+        official: t.Boolean({ description: "Whether this document is marked as officially endorsed." }),
+        anon: t.Boolean({ description: "If true, the document will hide the author's name." }),
+        allowCouncil: t.Boolean({ description: "If true, council members are allowed to view this document." }),
+        allowEveryone: t.Boolean({ description: "If true, this document is fully public." }),
+        allowLoggedIn: t.Boolean({ description: "If true, allow all users who are logged in to view this document." }),
+        allowlist: t.Array(snowflake(), { description: "An array of users (IDs) who are allowed to view this document." }),
+        title: t.String({ minLength: 1, maxLength: 256, description: "The title of this document.", error: "Title must be 1-256 characters." }),
+        body: t.String({ minLength: 1, maxLength: 16384, description: "The main content of this document.", error: "Body must be 1-16384 characters." }),
+        ...tcnDocEmbedData,
     },
 };
 
@@ -166,5 +216,11 @@ export default {
         ...objects.banshareSettings,
         guild: snowflake("The ID of the guild."),
         logs: t.Array(snowflake(), { description: "An array of logging channel IDs." }),
+    }),
+    tcnDoc: t.Object(objects.tcnDoc),
+    tcnDocResponse: t.Object({
+        id: fields.docId,
+        author: snowflake("The ID of the author of this document."),
+        ...objects.tcnDoc,
     }),
 };
