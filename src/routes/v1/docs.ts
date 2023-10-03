@@ -1,7 +1,7 @@
 import { t } from "elysia";
 import crypto from "node:crypto";
 import { App } from "../../lib/app.js";
-import audit, { headers } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import { hasScope, isCouncil, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import db from "../../lib/db.js";
@@ -94,7 +94,7 @@ export default (app: App) =>
                         const doc = await db.docs.findOneAndUpdate({ id }, { $setOnInsert: document }, { upsert: true });
 
                         if (!doc) {
-                            audit(user, "docs/create", { id, ...body });
+                            audit(user, AuditLogAction.DOCS_CREATE, { id, ...body });
                             return { id };
                         }
                     }
@@ -129,7 +129,7 @@ export default (app: App) =>
                     if (!user!.observer) body.official = false;
 
                     await db.docs.updateOne({ id }, { $set: body });
-                    audit(user, "docs/edit", { id, ...body });
+                    audit(user, AuditLogAction.DOCS_EDIT, { id, ...body });
                 },
                 {
                     beforeHandle: [isSignedIn, isCouncil, hasScope("docs/write")],
@@ -157,7 +157,7 @@ export default (app: App) =>
                     const doc = await db.docs.findOneAndUpdate({ id }, { $set: { deleted: true } });
                     if (!doc) throw new APIError(404, codes.MISSING_DOCUMENT, `No document exists with ID ${id}.`);
 
-                    audit(user, "docs/delete", { id }, reason);
+                    audit(user, AuditLogAction.DOCS_DELETE, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("docs/delete")],
@@ -184,7 +184,7 @@ export default (app: App) =>
                     const doc = await db.docs.findOneAndUpdate({ id }, { $set: { official } });
                     if (!doc) throw new APIError(404, codes.MISSING_DOCUMENT, `No document exists with ID ${id}.`);
 
-                    audit(user, `docs/official/${official ? "add" : "remove"}`, { id }, reason);
+                    audit(user, official ? AuditLogAction.DOCS_OFFICIAL_ADD : AuditLogAction.DOCS_OFFICIAL_REMOVE, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("docs/official")],

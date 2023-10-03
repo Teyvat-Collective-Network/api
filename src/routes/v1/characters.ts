@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import audit, { headers } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
@@ -54,7 +54,7 @@ export default (app: App) =>
                     if (body.attributes) for (const [type, id] of Object.entries(body.attributes as Record<string, string>)) await data.getAttribute(type, id);
 
                     await db.characters.insertOne({ id, name: body.name, short: body.short, attributes: body.attributes ?? {} });
-                    audit(user, "characters/create", { id, ...body }, reason);
+                    audit(user, AuditLogAction.CHARACTERS_CREATE, { id, ...body }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/write")],
@@ -110,7 +110,7 @@ export default (app: App) =>
                         if (body.id) await db.guilds.updateMany({ mascot: id }, { $set: { mascot: body.id } });
                     });
 
-                    audit(user, "characters/edit", { id, ...body }, reason);
+                    audit(user, AuditLogAction.CHARACTERS_EDIT, { id, ...body }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/write")],
@@ -157,7 +157,7 @@ export default (app: App) =>
                         );
 
                     await db.characters.deleteOne({ id });
-                    audit(user, "characters/delete", { id }, reason);
+                    audit(user, AuditLogAction.CHARACTERS_DELETE, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/delete")],

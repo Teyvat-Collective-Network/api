@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import audit, { headers } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import db from "../../lib/db.js";
 import schemas from "../../lib/schemas.js";
@@ -54,7 +54,7 @@ export default (app: App) =>
                 "/invalidate",
                 async ({ user }) => {
                     await db.invalidations.updateOne({ id: user!.id }, { $set: { time: Date.now() } }, { upsert: true });
-                    audit(user, "auth/invalidate/self", { id: user!.id });
+                    audit(user, AuditLogAction.AUTH_INVALIDATE_SELF, { id: user!.id });
                 },
                 {
                     beforeHandle: [isSignedIn, hasScope("auth/invalidate/self")],
@@ -76,7 +76,7 @@ export default (app: App) =>
                 "/invalidate/:id",
                 async ({ params: { id }, reason, user }) => {
                     await db.invalidations.updateOne({ id }, { $set: { time: Date.now() } }, { upsert: true });
-                    audit(user, "auth/invalidate/other", { id }, reason);
+                    audit(user, AuditLogAction.AUTH_INVALIDATE_OTHER, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("auth/invalidate")],
@@ -105,7 +105,7 @@ export default (app: App) =>
                     const data: any = { created, id: user!.id, scopes: body.scopes };
                     if (body.maxage > 0) data.expires = created + body.maxage;
 
-                    audit(user, "auth/key", data, reason);
+                    audit(user, AuditLogAction.AUTH_KEY, data, reason);
                     return await jwt.sign(data);
                 },
                 {

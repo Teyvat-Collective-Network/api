@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import audit, { headers } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import bot from "../../lib/bot.js";
 import { hasScope, isObserver, isOwner, isSignedIn } from "../../lib/checkers.js";
 import data from "../../lib/data.js";
@@ -73,7 +73,7 @@ export default (app: App) =>
                 "/:id",
                 async ({ body, params: { id }, reason, user }) => {
                     await db.users.updateOne({ id }, { $set: body }, { upsert: true });
-                    audit(user, "users/edit", { id, ...body }, reason);
+                    audit(user, AuditLogAction.USERS_EDIT, { id, ...body }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -97,7 +97,7 @@ export default (app: App) =>
                 "/:id/roles/:role",
                 async ({ params: { id, role }, reason, user }) => {
                     await db.users.updateOne({ id }, { $addToSet: { roles: role } }, { upsert: true });
-                    audit(user, "users/roles/add", { id, role }, reason);
+                    audit(user, AuditLogAction.USERS_ROLES_ADD, { id, role }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -120,7 +120,7 @@ export default (app: App) =>
                 "/:id/roles/:role",
                 async ({ params: { id, role }, reason, user }) => {
                     await db.users.updateOne({ id }, { $pull: { roles: role } }, { upsert: true });
-                    audit(user, "users/roles/remove", { id, role }, reason);
+                    audit(user, AuditLogAction.USERS_ROLES_REMOVE, { id, role }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -143,7 +143,7 @@ export default (app: App) =>
                 "/:id/roles/:role/:guild",
                 async ({ params: { id, role, guild }, reason, user }) => {
                     await db.guilds.updateOne({ id: guild }, { $addToSet: { [`users.${id}.roles`]: role } });
-                    audit(user, "users/roles/add", { id, role, guild }, reason);
+                    audit(user, AuditLogAction.USERS_ROLES_ADD, { id, role, guild }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -170,7 +170,7 @@ export default (app: App) =>
                 "/:id/roles/:role/:guild",
                 async ({ params: { id, role, guild }, reason, user }) => {
                     await db.guilds.updateOne({ id: guild }, { $pull: { [`users.${id}.roles`]: role } });
-                    audit(user, "users/roles/add", { id, role, guild }, reason);
+                    audit(user, AuditLogAction.USERS_ROLES_REMOVE, { id, role, guild }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -197,7 +197,7 @@ export default (app: App) =>
                 "/:id/staff/:guild",
                 async ({ body: { staff }, params: { id, guild }, reason, user }) => {
                     await db.guilds.updateOne({ id: guild }, { $set: { [`users.${id}.staff`]: staff } });
-                    audit(user, `users/staff/${staff ? "add" : "remove"}`, { id, guild }, reason);
+                    audit(user, staff ? AuditLogAction.USERS_STAFF_ADD : AuditLogAction.USERS_STAFF_REMOVE, { id, guild }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],

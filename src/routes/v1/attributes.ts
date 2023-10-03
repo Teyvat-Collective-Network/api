@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import audit, { headers } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
@@ -61,7 +61,7 @@ export default (app: App) =>
 
                     const data = { type, id, name: body.name, emoji: body.emoji };
                     await db.attributes.insertOne(data);
-                    audit(user, "attributes/create", data, reason);
+                    audit(user, AuditLogAction.ATTRIBUTES_CREATE, data, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("attributes/write")],
@@ -110,7 +110,7 @@ export default (app: App) =>
                         }
                     });
 
-                    audit(user, "attributes/edit", { ...$set, type, id, ...(body.id ? { oldId: id, newId: body.id } : {}) }, reason);
+                    audit(user, AuditLogAction.ATTRIBUTES_EDIT, { ...$set, type, id, ...(body.id ? { oldId: id, newId: body.id } : {}) }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("attributes/write")],
@@ -148,7 +148,7 @@ export default (app: App) =>
                         await db.characters.updateMany({ [`attributes.${type}`]: id }, { $unset: { [`attributes.${type}`]: 0 } });
                     });
 
-                    audit(user, "attributes/delete", { type, id }, reason);
+                    audit(user, AuditLogAction.ATTRIBUTES_DELETE, { type, id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("attributes/delete")],

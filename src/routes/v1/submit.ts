@@ -8,7 +8,7 @@ import schemas from "../../lib/schemas.js";
 import { trim } from "../../lib/utils.js";
 import { validateInvite } from "../../lib/validators.js";
 import db from "../../lib/db.js";
-import audit from "../../lib/audit.js";
+import audit, { AuditLogAction } from "../../lib/audit.js";
 
 export default (app: App) =>
     app.group("", (app) =>
@@ -57,7 +57,7 @@ export default (app: App) =>
 
                 await db.applications.insertOne(data);
                 await bot(bearer!, `POST /apply`, data);
-                audit(user, "apply", data);
+                audit(user, AuditLogAction.APPLY, data);
             },
             {
                 beforeHandle: [isSignedIn, hasScope("apply"), ratelimitCheck("apply", 300000, 1)],

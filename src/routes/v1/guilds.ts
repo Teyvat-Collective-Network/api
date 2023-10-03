@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import audit, { headers } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
@@ -73,7 +73,7 @@ export default (app: App) =>
 
                     await db.guilds.insertOne(createData);
 
-                    audit(user, "guilds/create", createData, reason);
+                    audit(user, AuditLogAction.GUILDS_CREATE, createData, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -131,7 +131,7 @@ export default (app: App) =>
                         else $set.delegated = body.delegated;
 
                     await db.guilds.updateOne({ id }, { $set, $unset });
-                    audit(user, "guilds/edit", { id, ...body }, reason);
+                    audit(user, AuditLogAction.GUILDS_EDIT, { id, ...body }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -169,7 +169,7 @@ export default (app: App) =>
                         await db.banshare_settings.deleteOne({ guild: id });
                     });
 
-                    audit(user, "guilds/delete", { id }, reason);
+                    audit(user, AuditLogAction.GUILDS_DELETE, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/delete")],

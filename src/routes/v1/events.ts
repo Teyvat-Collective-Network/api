@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import audit, { headers, requiredError } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers, requiredError } from "../../lib/audit.js";
 import { checkPermissions, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
@@ -50,7 +50,7 @@ export default (app: App) =>
                 async ({ body, user }) => {
                     const id = await autoinc("events");
                     await db.events.insertOne({ id, owner: user!.id, ...body });
-                    audit(user, "events/create", { id, ...body });
+                    audit(user, AuditLogAction.EVENTS_CREATE, { id, ...body });
                     return id;
                 },
                 {
@@ -79,7 +79,7 @@ export default (app: App) =>
                         throw new APIError(403, codes.FORBIDDEN, `Only observers and the event owner may edit an event.`);
 
                     await db.events.updateOne({ id }, { $set: body });
-                    audit(user, "events/edit", { id, ...body });
+                    audit(user, AuditLogAction.EVENTS_EDIT, { id, ...body });
                 },
                 {
                     beforeHandle: [isSignedIn],
@@ -115,7 +115,7 @@ export default (app: App) =>
                     if (entry.owner !== user!.id && !reason) throw new APIError(400, codes.INVALID_BODY, requiredError);
 
                     await db.events.deleteOne({ id });
-                    audit(user, `events/delete/${entry.owner === user!.id ? "self" : "other"}`, { id }, reason);
+                    audit(user, entry.owner === user!.id ? AuditLogAction.EVENTS_DELETE_SELF : AuditLogAction.EVENTS_DELETE_OTHER, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn],

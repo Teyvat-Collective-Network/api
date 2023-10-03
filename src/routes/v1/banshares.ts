@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import audit, { headers } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import { checkBansharePermissions, checkChannel, checkOwnership, formatBanshareSettings } from "../../lib/banshares.js";
 import bot from "../../lib/bot.js";
 import { hasScope, isCouncil, isObserver, isSignedIn, ratelimitApply, ratelimitCheck } from "../../lib/checkers.js";
@@ -75,7 +75,7 @@ export default (app: App) =>
 
                     await db.banshares.insertOne(createData);
 
-                    audit(user, "banshares/create", createData, reason);
+                    audit(user, AuditLogAction.BANSHARES_CREATE, createData, reason);
 
                     return { message };
                 },
@@ -195,7 +195,7 @@ export default (app: App) =>
                         throw error;
                     }
 
-                    audit(user, "banshares/severity", { message, severity });
+                    audit(user, AuditLogAction.BANSHARES_SEVERITY, { message, severity });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -233,7 +233,7 @@ export default (app: App) =>
                         throw error;
                     }
 
-                    audit(user, "banshares/reject", { message });
+                    audit(user, AuditLogAction.BANSHARES_REJECT, { message });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -270,7 +270,7 @@ export default (app: App) =>
                         throw error;
                     }
 
-                    audit(user, "banshares/publish", { message });
+                    audit(user, AuditLogAction.BANSHARES_PUBLISH, { message });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -311,7 +311,7 @@ export default (app: App) =>
                         throw error;
                     }
 
-                    audit(user, "banshares/rescind", { message }, explanation);
+                    audit(user, AuditLogAction.BANSHARES_RESCIND, { message }, explanation);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -363,7 +363,7 @@ export default (app: App) =>
                         throw error;
                     }
 
-                    audit(user, "banshares/execute", { message, guild });
+                    audit(user, AuditLogAction.BANSHARES_EXECUTE, { message, guild });
                 },
                 {
                     beforeHandle: [isSignedIn, checkBansharePermissions, hasScope("banshares/execute"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -420,7 +420,7 @@ export default (app: App) =>
                     const doc = ((await db.banshare_settings.findOneAndUpdate({ guild }, { $set: body }, { upsert: true, returnDocument: "after" })) ??
                         {}) as unknown as Partial<BanshareSettings>;
 
-                    audit(user, "banshares/settings", { guild, ...body });
+                    audit(user, AuditLogAction.BANSHARES_SETTINGS, { guild, ...body });
 
                     return formatBanshareSettings(doc);
                 },
@@ -481,7 +481,7 @@ export default (app: App) =>
                     if (doc?.logs && doc.logs.length >= 10) throw new APIError(409, codes.LIMIT_REACHED, "Each guild may only have 10 log channels.");
 
                     await db.banshare_settings.updateOne({ guild }, { $addToSet: { logs: channel } as any }, { upsert: true });
-                    audit(user, "banshares/logs/add", { guild, channel });
+                    audit(user, AuditLogAction.BANSHARES_LOGS_ADD, { guild, channel });
                 },
                 {
                     beforeHandle: [isSignedIn, checkOwnership, hasScope("banshares/settings")],
@@ -511,7 +511,7 @@ export default (app: App) =>
                     if (!doc?.logs?.includes(channel)) throw new APIError(404, codes.NOT_FOUND, "That channel is not a log channel in this guild.");
 
                     await db.banshare_settings.updateOne({ guild }, { $pull: { logs: channel } as any });
-                    audit(user, "banshares/logs/remove", { guild, channel });
+                    audit(user, AuditLogAction.BANSHARES_LOGS_REMOVE, { guild, channel });
                 },
                 {
                     beforeHandle: [isSignedIn, checkOwnership, hasScope("banshares/settings")],
@@ -592,7 +592,7 @@ export default (app: App) =>
                     const doc = await db.banshares.findOneAndUpdate({ message }, { $push: { crossposts: { $each: crossposts } } as any });
                     if (!doc) throw new APIError(404, codes.MISSING_BANSHARE, `No banshare exists with message ID ${message}.`);
 
-                    audit(user, "banshares/crosspost", { message, crossposts });
+                    audit(user, AuditLogAction.BANSHARES_CROSSPOST, { message, crossposts });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage")],
@@ -647,7 +647,7 @@ export default (app: App) =>
                 "/:message",
                 async ({ params: { message }, reason, user }) => {
                     await db.banshares.deleteOne({ message });
-                    audit(user, "banshares/delete", { message }, reason);
+                    audit(user, AuditLogAction.BANSHARES_DELETE, { message }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage")],
@@ -679,7 +679,7 @@ export default (app: App) =>
                     if (!doc) throw new APIError(404, codes.MISSING_BANSHARE, `No banshare exists with message ID ${message}.`);
 
                     await bot(bearer!, `POST /banshares/${message}/report`, { user: user!.id, reason });
-                    audit(user, "banshares/report", { message }, reason);
+                    audit(user, AuditLogAction.BANSHARES_REPORT, { message }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, hasScope("banshares/report"), ratelimitCheck("report-banshare", 15000, 1)],
