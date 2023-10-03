@@ -1,5 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
+import audit, { headers, requiredError } from "../../lib/audit.js";
 import { checkPermissions, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
@@ -49,6 +50,7 @@ export default (app: App) =>
                 async ({ body, user }) => {
                     const id = await autoinc("events");
                     await db.events.insertOne({ id, owner: user!.id, ...body });
+                    audit(user, "events/create", { id, ...body });
                     return id;
                 },
                 {
@@ -77,6 +79,7 @@ export default (app: App) =>
                         throw new APIError(403, codes.FORBIDDEN, `Only observers and the event owner may edit an event.`);
 
                     await db.events.updateOne({ id }, { $set: body });
+                    audit(user, "events/edit", { id, ...body });
                 },
                 {
                     beforeHandle: [isSignedIn],
@@ -103,13 +106,16 @@ export default (app: App) =>
             )
             .delete(
                 "/:id",
-                async ({ params: { id }, user }) => {
+                async ({ params: { id }, reason, user }) => {
                     const entry = await data.getEvent(id);
 
                     if (!user!.observer && entry.owner !== user!.id)
                         throw new APIError(403, codes.FORBIDDEN, `Only observers and the event owner may delete an event.`);
 
+                    if (entry.owner !== user!.id && !reason) throw new APIError(400, codes.INVALID_BODY, requiredError);
+
                     await db.events.deleteOne({ id });
+                    audit(user, `events/delete/${entry.owner === user!.id ? "self" : "other"}`, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn],
@@ -124,6 +130,7 @@ export default (app: App) =>
                             Delete a calendar event. Observer/owner-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: t.Numeric({ description: "The ID of the event." }) }),
                 },
             ),

@@ -1,13 +1,14 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
+import audit, { headers } from "../../lib/audit.js";
+import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
+import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
+import db, { withSession } from "../../lib/db.js";
+import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
 import { Attribute } from "../../lib/types.js";
-import { trim } from "../../lib/utils.js";
-import db from "../../lib/db.js";
-import { APIError } from "../../lib/errors.js";
-import codes from "../../lib/codes.js";
-import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
+import { changed, nonempty, trim } from "../../lib/utils.js";
 
 export default (app: App) =>
     app.group("/attributes", (app) =>
@@ -54,11 +55,13 @@ export default (app: App) =>
             )
             .post(
                 "/:type/:id",
-                async ({ body, params: { type, id } }) => {
+                async ({ body, params: { type, id }, reason, user }) => {
                     if ((await db.attributes.countDocuments({ type, id })) > 0)
                         throw new APIError(409, codes.DUPLICATE, `An attribute already exists with type ${type} and ID ${id}.`);
 
-                    await db.attributes.insertOne({ type, id, name: body.name, emoji: body.emoji });
+                    const data = { type, id, name: body.name, emoji: body.emoji };
+                    await db.attributes.insertOne(data);
+                    audit(user, "attributes/create", data, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("attributes/write")],
@@ -77,6 +80,7 @@ export default (app: App) =>
                             Create an attribute. Observer-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({
                         type: schemas.attribute.properties.type,
                         id: schemas.attribute.properties.id,
@@ -85,21 +89,28 @@ export default (app: App) =>
             )
             .patch(
                 "/:type/:id",
-                async ({ body, params: { type, id } }) => {
-                    await data.getAttribute(type, id);
+                async ({ body, params: { type, id }, reason, user }) => {
+                    const doc = await data.getAttribute(type, id);
 
                     if (body.id && (await db.attributes.countDocuments({ type, id: body.id })) > 0)
                         throw new APIError(409, codes.DUPLICATE, `An attribute already exists with type ${type} and ID ${body.id}.`);
 
                     const $set: any = {};
 
-                    if (body.id) $set.id = body.id;
-                    if (body.name) $set.name = body.name;
-                    if (body.emoji) $set.emoji = body.emoji;
+                    for (const key of ["id", "name", "emoji"] as const) if (changed(doc[key], body[key])) $set[key] = body[key];
 
-                    await db.attributes.updateOne({ type, id }, { $set });
+                    nonempty($set);
 
-                    if (body.id) await db.characters.updateMany({ [`attributes.${type}`]: id }, { $set: { [`attributes.${type}`]: body.id } });
+                    await withSession(async () => {
+                        await db.attributes.updateOne({ type, id }, { $set });
+
+                        if (body.id) {
+                            await db.audit_logs.updateMany({ type, id }, { $set: { id: body.id } });
+                            await db.characters.updateMany({ [`attributes.${type}`]: id }, { $set: { [`attributes.${type}`]: body.id } });
+                        }
+                    });
+
+                    audit(user, "attributes/edit", { ...$set, type, id, ...(body.id ? { oldId: id, newId: body.id } : {}) }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("attributes/write")],
@@ -120,6 +131,7 @@ export default (app: App) =>
                             attribute of the same type. Editing the type is not supported. All references to the attribute will also be updated.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({
                         type: schemas.attribute.properties.type,
                         id: schemas.attribute.properties.id,
@@ -128,10 +140,15 @@ export default (app: App) =>
             )
             .delete(
                 "/:type/:id",
-                async ({ params: { type, id } }) => {
-                    await data.getAttribute(type, id);
-                    await db.attributes.deleteOne({ type, id });
-                    await db.characters.updateMany({ [`attributes.${type}`]: id }, { $unset: { [`attributes.${type}`]: 0 } });
+                async ({ params: { type, id }, reason, user }) => {
+                    const attr = await data.getAttribute(type, id);
+
+                    await withSession(async () => {
+                        await db.attributes.deleteOne({ type, id });
+                        await db.characters.updateMany({ [`attributes.${type}`]: id }, { $unset: { [`attributes.${type}`]: 0 } });
+                    });
+
+                    audit(user, "attributes/delete", { type, id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("attributes/delete")],
@@ -146,6 +163,7 @@ export default (app: App) =>
                             Delete a character attribute. Observer-only. All references to the attribute will also be removed.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({
                         type: schemas.attribute.properties.type,
                         id: schemas.attribute.properties.id,

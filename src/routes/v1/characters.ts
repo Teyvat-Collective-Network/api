@@ -1,12 +1,13 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
+import audit, { headers } from "../../lib/audit.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
-import db from "../../lib/db.js";
+import db, { withSession } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
-import { trim } from "../../lib/utils.js";
+import { changed, nonempty, trim } from "../../lib/utils.js";
 
 export default (app: App) =>
     app.group("/characters", (app) =>
@@ -48,11 +49,12 @@ export default (app: App) =>
             )
             .post(
                 "/:id",
-                async ({ body, params: { id } }) => {
+                async ({ body, params: { id }, reason, user }) => {
                     if ((await db.characters.countDocuments({ id })) > 0) throw new APIError(409, codes.DUPLICATE, `A character already exists with ID ${id}.`);
                     if (body.attributes) for (const [type, id] of Object.entries(body.attributes as Record<string, string>)) await data.getAttribute(type, id);
 
                     await db.characters.insertOne({ id, name: body.name, short: body.short, attributes: body.attributes ?? {} });
+                    audit(user, "characters/create", { id, ...body }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/write")],
@@ -72,36 +74,43 @@ export default (app: App) =>
                             Create a new character (insert a Genshin Impact character into the API). Observer-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: schemas.character.properties.id }),
                 },
             )
             .patch(
                 "/:id",
-                async ({ body, params: { id } }) => {
-                    await data.getCharacter(id);
+                async ({ body, params: { id }, reason, user }) => {
+                    const doc = await data.getCharacter(id);
 
-                    if (body.id && (await db.characters.countDocuments({ id: body.id })) > 0)
+                    if (changed(doc.id, body.id) && (await db.characters.countDocuments({ id: body.id })) > 0)
                         throw new APIError(409, codes.DUPLICATE, `A character already exists with ID ${body.id}.`);
 
                     const $set: any = {};
                     const $unset: any = {};
 
-                    if (body.id) $set.id = body.id;
-                    if (body.name) $set.name = body.name;
+                    for (const key of ["id", "name"] as const) if (changed(doc[key], body[key])) $set[key] = body[key];
 
                     if (body.short !== undefined)
-                        if (body.short === null) $unset.short = 0;
-                        else $set.short = body.short;
+                        if (body.short === null && doc.short) $unset.short = 0;
+                        else if (body.short !== null && doc.short !== body.short) $set.short = body.short;
 
                     for (const [type, id] of Object.entries((body.attributes as Record<string, string>) ?? {}))
-                        if (id === null) $unset[`attributes.${type}`] = 0;
-                        else {
+                        if (id === null) {
+                            if (doc.attributes[type]) $unset[`attributes.${type}`] = 0;
+                        } else if (changed(doc.attributes[type], id)) {
                             await data.getAttribute(type, id);
                             $set[`attributes.${type}`] = id;
                         }
 
-                    await db.characters.updateOne({ id }, { $set, $unset });
-                    if (body.id) await db.guilds.updateMany({ mascot: id }, { $set: { mascot: body.id } });
+                    nonempty({ ...$set, ...$unset });
+
+                    await withSession(async () => {
+                        await db.characters.updateOne({ id }, { $set, $unset });
+                        if (body.id) await db.guilds.updateMany({ mascot: id }, { $set: { mascot: body.id } });
+                    });
+
+                    audit(user, "characters/edit", { id, ...body }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/write")],
@@ -131,12 +140,13 @@ export default (app: App) =>
                             to the character will be updated. Set the short name to \`null\` to remove it.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: schemas.character.properties.id }),
                 },
             )
             .delete(
                 "/:id",
-                async ({ params: { id } }) => {
+                async ({ params: { id }, reason, user }) => {
                     const { name } = await data.getCharacter(id);
 
                     if ((await db.guilds.countDocuments({ mascot: id })) > 0)
@@ -147,6 +157,7 @@ export default (app: App) =>
                         );
 
                     await db.characters.deleteOne({ id });
+                    audit(user, "characters/delete", { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/delete")],
@@ -161,6 +172,7 @@ export default (app: App) =>
                             Delete a character. Observer-only. This is only allowed if no server has this character as their mascot.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: schemas.character.properties.id }),
                 },
             ),

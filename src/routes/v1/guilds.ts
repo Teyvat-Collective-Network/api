@@ -1,9 +1,10 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
+import audit, { headers } from "../../lib/audit.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
-import db from "../../lib/db.js";
+import db, { withSession } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
 import { trim } from "../../lib/utils.js";
@@ -49,7 +50,7 @@ export default (app: App) =>
             )
             .post(
                 "/:id",
-                async ({ bearer, body, params: { id } }) => {
+                async ({ bearer, body, params: { id }, reason, user }) => {
                     if ((await db.guilds.countDocuments({ id })) > 0) throw new APIError(409, codes.DUPLICATE, `A guild already exists with ID ${id}.`);
 
                     if (body.delegated && !body.advisor)
@@ -59,7 +60,7 @@ export default (app: App) =>
 
                     const code = await validateInvite(bearer!, body.invite, id);
 
-                    await db.guilds.insertOne({
+                    const createData = {
                         id,
                         name: body.name,
                         mascot: body.mascot,
@@ -68,7 +69,11 @@ export default (app: App) =>
                         advisor: body.advisor || null,
                         voter: body.delegated ? body.owner : body.advisor,
                         delegated: body.delegated,
-                    });
+                    };
+
+                    await db.guilds.insertOne(createData);
+
+                    audit(user, "guilds/create", createData, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -84,19 +89,20 @@ export default (app: App) =>
                         tags: ["V1"],
                         summary: "Create a TCN guild.",
                         description: trim(`
-                        \`\`\`
-                        Scope: guilds/write
-                        \`\`\`
+                            \`\`\`
+                            Scope: guilds/write
+                            \`\`\`
 
-                        Create a TCN guild (add a guild into the TCN). Observer-only.
-                    `),
+                            Create a TCN guild (add a guild into the TCN). Observer-only.
+                        `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: schemas.snowflake("The guild's Discord ID.") }),
                 },
             )
             .patch(
                 "/:id",
-                async ({ bearer, body, params: { id } }) => {
+                async ({ bearer, body, params: { id }, reason, user }) => {
                     const guild = await data.getGuild(id);
 
                     const $set: any = {};
@@ -125,6 +131,7 @@ export default (app: App) =>
                         else $set.delegated = body.delegated;
 
                     await db.guilds.updateOne({ id }, { $set, $unset });
+                    audit(user, "guilds/edit", { id, ...body }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -148,16 +155,21 @@ export default (app: App) =>
                             \`null\` will remove the guild's advisor.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: schemas.snowflake("The guild's Discord ID.") }),
                 },
             )
             .delete(
                 "/:id",
-                async ({ params: { id } }) => {
+                async ({ params: { id }, reason, user }) => {
                     await data.getGuild(id);
 
-                    await db.guilds.deleteOne({ id });
-                    await db.banshare_settings.deleteOne({ guild: id });
+                    await withSession(async () => {
+                        await db.guilds.deleteOne({ id });
+                        await db.banshare_settings.deleteOne({ guild: id });
+                    });
+
+                    audit(user, "guilds/delete", { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/delete")],
@@ -165,13 +177,15 @@ export default (app: App) =>
                         tags: ["V1"],
                         summary: "Delete a TCN guild.",
                         description: trim(`
-                        \`\`\`
-                        Scope: guilds/delete
-                        \`\`\`
+                            \`\`\`
+                            Scope: guilds/delete
+                            \`\`\`
 
-                        Delete a TCN guild (remove a guild from the TCN). Observer-only.
-                    `),
+                            Delete a TCN guild (remove a guild from the TCN). Observer-only.
+                        `),
                     },
+                    headers: headers(),
+                    params: t.Object({ id: schemas.snowflake("The guild's Discord ID.") }),
                 },
             ),
     );

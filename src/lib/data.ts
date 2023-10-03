@@ -35,9 +35,8 @@ function formatGuild(guild: Guild): Guild {
 export default {
     async getUser(id: string): Promise<User> {
         const entry = (await db.users.findOne({ id })) as unknown as User;
-        if (!entry) return { id, guilds: {}, roles: [], observer: false, owner: false, advisor: false, voter: false, council: false, staff: false };
 
-        const user = baseUser(entry.id, entry.observer, entry.roles);
+        const user = baseUser(id, entry?.observer ?? false, entry?.roles ?? []);
 
         for (const guild of await this.getGuilds()) {
             const get = () => (user.guilds[guild.id] ??= baseUserGuild());

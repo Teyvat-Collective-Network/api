@@ -9,7 +9,7 @@ import data from "./data.js";
 import db from "./db.js";
 import { APIError } from "./errors.js";
 import logger from "./logger.js";
-import { stripMongoIds } from "./utils.js";
+import { stripMongoIds, trim } from "./utils.js";
 
 export const app = new Elysia()
     .use(cors())
@@ -18,6 +18,16 @@ export const app = new Elysia()
             documentation: {
                 info: {
                     title: "Teyvat Collective Network Public API",
+                    description: trim(`
+                        ### TCN API
+
+                        Welcome to the Teyvat Collective Network public API! This API is used for all database manipulation by all processes and is the single
+                        source of truth for all database CRUD operations. For any issues, questions, or comments, please contact the developer using the links
+                        below.
+
+                        Some actions support (or require) audit log reasons. Set the \`X-Audit-Log-Reason\` header for these routes. Check the headers section
+                        for a route to determine if it supports this header.
+                    `),
                     version: "1.0.0",
                     contact: {
                         email: "hyperneutrino15@gmail.com",
@@ -56,7 +66,12 @@ export const app = new Elysia()
         const entry = await db.invalidations.findOne({ id: payload.id });
         if (entry && payload.created <= entry.time) return {};
 
-        return { user: { ...payload, ...(await data.getUser(payload.id)) }, internal: !!payload.internal };
+        return { user: { ...payload, ...(await data.getUser(payload.id)), token: bearer }, internal: !!payload.internal };
+    })
+    .derive(async ({ headers }) => {
+        const reason = headers["x-audit-log-reason"] || null;
+        if (reason?.length === 0 || (reason && reason.length > 256)) throw new APIError(400, codes.INVALID_BODY, "Audit log reason must be 1-256 characters");
+        return { reason };
     })
     .derive(() => ({ log: logger }))
     .onBeforeHandle(({ internal, log, path, request, user }) =>

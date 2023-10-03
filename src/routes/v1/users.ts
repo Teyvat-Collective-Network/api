@@ -1,5 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
+import audit, { headers } from "../../lib/audit.js";
 import bot from "../../lib/bot.js";
 import { hasScope, isObserver, isOwner, isSignedIn } from "../../lib/checkers.js";
 import data from "../../lib/data.js";
@@ -70,8 +71,9 @@ export default (app: App) =>
             )
             .patch(
                 "/:id",
-                async ({ body, params: { id } }) => {
-                    await db.users.updateOne({ id }, { $set: { observer: body.observer } }, { upsert: true });
+                async ({ body, params: { id }, reason, user }) => {
+                    await db.users.updateOne({ id }, { $set: body }, { upsert: true });
+                    audit(user, "users/edit", { id, ...body }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -87,13 +89,15 @@ export default (app: App) =>
                             Update a user, setting whether or not they are an observer. Observer-only.
                         `),
                     },
+                    headers: headers(true),
                     params: t.Object({ id: schemas.snowflake("The user's Discord ID.") }),
                 },
             )
             .put(
                 "/:id/roles/:role",
-                async ({ params: { id, role } }) => {
+                async ({ params: { id, role }, reason, user }) => {
                     await db.users.updateOne({ id }, { $addToSet: { roles: role } }, { upsert: true });
+                    audit(user, "users/roles/add", { id, role }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -108,13 +112,15 @@ export default (app: App) =>
                             Update a user, giving them a role globally. Observer-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: schemas.snowflake("The user's Discord ID."), role: schemas.id("The role to assign.") }),
                 },
             )
             .delete(
                 "/:id/roles/:role",
-                async ({ params: { id, role } }) => {
+                async ({ params: { id, role }, reason, user }) => {
                     await db.users.updateOne({ id }, { $pull: { roles: role } }, { upsert: true });
+                    audit(user, "users/roles/remove", { id, role }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -129,13 +135,15 @@ export default (app: App) =>
                             Update a user, removing a role from them globally. Observer-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: schemas.snowflake("The user's Discord ID."), role: schemas.id("The role to remove.") }),
                 },
             )
             .put(
                 "/:id/roles/:role/:guild",
-                async ({ params: { id, role, guild } }) => {
+                async ({ params: { id, role, guild }, reason, user }) => {
                     await db.guilds.updateOne({ id: guild }, { $addToSet: { [`users.${id}.roles`]: role } });
+                    audit(user, "users/roles/add", { id, role, guild }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -150,6 +158,7 @@ export default (app: App) =>
                             Update a user, giving them a role within a guild. Observer/owner-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({
                         id: schemas.snowflake("The user's Discord ID."),
                         role: schemas.id("The role to assign."),
@@ -159,8 +168,9 @@ export default (app: App) =>
             )
             .delete(
                 "/:id/roles/:role/:guild",
-                async ({ params: { id, role, guild } }) => {
+                async ({ params: { id, role, guild }, reason, user }) => {
                     await db.guilds.updateOne({ id: guild }, { $pull: { [`users.${id}.roles`]: role } });
+                    audit(user, "users/roles/add", { id, role, guild }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -175,6 +185,7 @@ export default (app: App) =>
                             Update a user, removing a role from them within a guild. Observer/owner-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({
                         id: schemas.snowflake("The user's Discord ID."),
                         role: schemas.id("The role to remove."),
@@ -184,8 +195,9 @@ export default (app: App) =>
             )
             .put(
                 "/:id/staff/:guild",
-                async ({ body: { staff }, params: { id, guild } }) => {
+                async ({ body: { staff }, params: { id, guild }, reason, user }) => {
                     await db.guilds.updateOne({ id: guild }, { $set: { [`users.${id}.staff`]: staff } });
+                    audit(user, `users/staff/${staff ? "add" : "remove"}`, { id, guild }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -201,6 +213,7 @@ export default (app: App) =>
                             Update a user, setting whether or not they are a staff member of a specified guild. Observer/owner-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({ id: schemas.snowflake("The user's Discord ID."), guild: schemas.snowflake("The guild's Discord ID.") }),
                 },
             ),

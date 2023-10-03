@@ -1,6 +1,7 @@
 import { t } from "elysia";
 import crypto from "node:crypto";
 import { App } from "../../lib/app.js";
+import audit, { headers } from "../../lib/audit.js";
 import { hasScope, isCouncil, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import db from "../../lib/db.js";
@@ -92,7 +93,10 @@ export default (app: App) =>
                         const document: TCNDoc = { ...body, id, deleted: false, author: user!.id };
                         const doc = await db.docs.findOneAndUpdate({ id }, { $setOnInsert: document }, { upsert: true });
 
-                        if (!doc) return { id };
+                        if (!doc) {
+                            audit(user, "docs/create", { id, ...body });
+                            return { id };
+                        }
                     }
                 },
                 {
@@ -125,6 +129,7 @@ export default (app: App) =>
                     if (!user!.observer) body.official = false;
 
                     await db.docs.updateOne({ id }, { $set: body });
+                    audit(user, "docs/edit", { id, ...body });
                 },
                 {
                     beforeHandle: [isSignedIn, isCouncil, hasScope("docs/write")],
@@ -148,9 +153,11 @@ export default (app: App) =>
             )
             .delete(
                 "/:id",
-                async ({ params: { id } }) => {
+                async ({ params: { id }, reason, user }) => {
                     const doc = await db.docs.findOneAndUpdate({ id }, { $set: { deleted: true } });
                     if (!doc) throw new APIError(404, codes.MISSING_DOCUMENT, `No document exists with ID ${id}.`);
+
+                    audit(user, "docs/delete", { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("docs/delete")],
@@ -165,6 +172,7 @@ export default (app: App) =>
                             Delete a document. Observer-only. To delete your own document, use \`PATCH /docs/:id\` with \`{ "deleted": true }\`.
                         `),
                     },
+                    headers: headers(true),
                     params: t.Object({
                         id: fields.docId,
                     }),
@@ -172,9 +180,11 @@ export default (app: App) =>
             )
             .patch(
                 "/:id/official",
-                async ({ body: { official }, params: { id } }) => {
+                async ({ body: { official }, params: { id }, reason, user }) => {
                     const doc = await db.docs.findOneAndUpdate({ id }, { $set: { official } });
                     if (!doc) throw new APIError(404, codes.MISSING_DOCUMENT, `No document exists with ID ${id}.`);
+
+                    audit(user, `docs/official/${official ? "add" : "remove"}`, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("docs/official")],
@@ -192,6 +202,7 @@ export default (app: App) =>
                             Set a document's official designation. Observer-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({
                         id: fields.docId,
                     }),

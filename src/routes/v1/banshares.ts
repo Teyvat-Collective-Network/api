@@ -1,5 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
+import audit, { headers } from "../../lib/audit.js";
 import { checkBansharePermissions, checkChannel, checkOwnership, formatBanshareSettings } from "../../lib/banshares.js";
 import bot from "../../lib/bot.js";
 import { hasScope, isCouncil, isObserver, isSignedIn, ratelimitApply, ratelimitCheck } from "../../lib/checkers.js";
@@ -57,7 +58,7 @@ export default (app: App) =>
 
                     const now = Date.now();
 
-                    await db.banshares.insertOne({
+                    const createData = {
                         message,
                         status: "pending",
                         urgent,
@@ -70,7 +71,11 @@ export default (app: App) =>
                         author: user!.id,
                         created: now,
                         reminded: now,
-                    });
+                    };
+
+                    await db.banshares.insertOne(createData);
+
+                    audit(user, "banshares/create", createData, reason);
 
                     return { message };
                 },
@@ -174,7 +179,7 @@ export default (app: App) =>
             )
             .patch(
                 "/:message/severity/:severity",
-                async ({ bearer, params: { message, severity } }) => {
+                async ({ bearer, params: { message, severity }, user }) => {
                     if (!["P0", "P1", "P2", "DM"].includes(severity)) throw new APIError(400, codes.INVALID_BODY, "Severity must be one of P0, P1, P2, or DM.");
 
                     if ((await db.banshares.countDocuments({ message })) === 0)
@@ -189,6 +194,8 @@ export default (app: App) =>
                         await db.banshares.updateOne({ message }, { $set: { severity: doc.severity } });
                         throw error;
                     }
+
+                    audit(user, "banshares/severity", { message, severity });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -225,6 +232,8 @@ export default (app: App) =>
                         await db.banshares.updateOne({ message }, { $set: { status: "pending" } });
                         throw error;
                     }
+
+                    audit(user, "banshares/reject", { message });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -260,6 +269,8 @@ export default (app: App) =>
                         await db.banshares.updateOne({ message }, { $set: { status: "pending" }, $unset: { publisher: 0 } });
                         throw error;
                     }
+
+                    audit(user, "banshares/publish", { message });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -299,6 +310,8 @@ export default (app: App) =>
                         await db.banshares.updateOne({ message }, { $set: { status: "published" }, $unset: { rescinder: 0, explanation: 0 } });
                         throw error;
                     }
+
+                    audit(user, "banshares/rescind", { message }, explanation);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -349,6 +362,8 @@ export default (app: App) =>
                         await db.banshares.updateOne({ message }, { $unset: { [`executors.${guild}`]: 0 } });
                         throw error;
                     }
+
+                    audit(user, "banshares/execute", { message, guild });
                 },
                 {
                     beforeHandle: [isSignedIn, checkBansharePermissions, hasScope("banshares/execute"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -404,6 +419,8 @@ export default (app: App) =>
 
                     const doc = ((await db.banshare_settings.findOneAndUpdate({ guild }, { $set: body }, { upsert: true, returnDocument: "after" })) ??
                         {}) as unknown as Partial<BanshareSettings>;
+
+                    audit(user, "banshares/settings", { guild, ...body });
 
                     return formatBanshareSettings(doc);
                 },
@@ -464,6 +481,7 @@ export default (app: App) =>
                     if (doc?.logs && doc.logs.length >= 10) throw new APIError(409, codes.LIMIT_REACHED, "Each guild may only have 10 log channels.");
 
                     await db.banshare_settings.updateOne({ guild }, { $addToSet: { logs: channel } as any }, { upsert: true });
+                    audit(user, "banshares/logs/add", { guild, channel });
                 },
                 {
                     beforeHandle: [isSignedIn, checkOwnership, hasScope("banshares/settings")],
@@ -487,12 +505,13 @@ export default (app: App) =>
             )
             .delete(
                 "/settings/logs/:guild/:channel",
-                async ({ internal, params: { guild, channel }, user }) => {
+                async ({ params: { guild, channel }, user }) => {
                     const doc = (await db.banshare_settings.findOne({ guild })) as any;
 
                     if (!doc?.logs?.includes(channel)) throw new APIError(404, codes.NOT_FOUND, "That channel is not a log channel in this guild.");
 
                     await db.banshare_settings.updateOne({ guild }, { $pull: { logs: channel } as any });
+                    audit(user, "banshares/logs/remove", { guild, channel });
                 },
                 {
                     beforeHandle: [isSignedIn, checkOwnership, hasScope("banshares/settings")],
@@ -569,9 +588,11 @@ export default (app: App) =>
             )
             .put(
                 "/:message/crossposts",
-                async ({ body: { crossposts }, params: { message } }) => {
+                async ({ body: { crossposts }, params: { message }, user }) => {
                     const doc = await db.banshares.findOneAndUpdate({ message }, { $push: { crossposts: { $each: crossposts } } as any });
                     if (!doc) throw new APIError(404, codes.MISSING_BANSHARE, `No banshare exists with message ID ${message}.`);
+
+                    audit(user, "banshares/crosspost", { message, crossposts });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage")],
@@ -624,8 +645,9 @@ export default (app: App) =>
             )
             .delete(
                 "/:message",
-                async ({ params: { message } }) => {
+                async ({ params: { message }, reason, user }) => {
                     await db.banshares.deleteOne({ message });
+                    audit(user, "banshares/delete", { message }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage")],
@@ -641,6 +663,7 @@ export default (app: App) =>
                             should not be deleted and should instead be rejected where possible.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({
                         message: schemas.snowflake("The ID of the message of the banshare."),
                     }),
@@ -656,6 +679,7 @@ export default (app: App) =>
                     if (!doc) throw new APIError(404, codes.MISSING_BANSHARE, `No banshare exists with message ID ${message}.`);
 
                     await bot(bearer!, `POST /banshares/${message}/report`, { user: user!.id, reason });
+                    audit(user, "banshares/report", { message }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, hasScope("banshares/report"), ratelimitCheck("report-banshare", 15000, 1)],

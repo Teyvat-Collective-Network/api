@@ -1,5 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
+import audit, { headers } from "../../lib/audit.js";
 import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import db from "../../lib/db.js";
 import schemas from "../../lib/schemas.js";
@@ -53,6 +54,7 @@ export default (app: App) =>
                 "/invalidate",
                 async ({ user }) => {
                     await db.invalidations.updateOne({ id: user!.id }, { $set: { time: Date.now() } }, { upsert: true });
+                    audit(user, "auth/invalidate/self", { id: user!.id });
                 },
                 {
                     beforeHandle: [isSignedIn, hasScope("auth/invalidate/self")],
@@ -72,8 +74,9 @@ export default (app: App) =>
             )
             .post(
                 "/invalidate/:id",
-                async ({ params: { id } }) => {
+                async ({ params: { id }, reason, user }) => {
                     await db.invalidations.updateOne({ id }, { $set: { time: Date.now() } }, { upsert: true });
+                    audit(user, "auth/invalidate/other", { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("auth/invalidate")],
@@ -89,18 +92,20 @@ export default (app: App) =>
                             This is useful for if a user's API token gets compromised.
                         `),
                     },
+                    headers: headers(true),
                     params: t.Object({ id: schemas.snowflake("The user's Discord ID.") }),
                 },
             )
             .post(
                 "/key",
-                async ({ body, jwt, user }) => {
+                async ({ body, jwt, reason, user }) => {
                     for (const scope of body.scopes) hasScope(scope)({ user });
 
                     const created = Date.now();
                     const data: any = { created, id: user!.id, scopes: body.scopes };
                     if (body.maxage > 0) data.expires = created + body.maxage;
 
+                    audit(user, "auth/key", data, reason);
                     return await jwt.sign(data);
                 },
                 {
@@ -123,6 +128,7 @@ export default (app: App) =>
                             of its own.
                         `),
                     },
+                    headers: headers(),
                 },
             ),
     );

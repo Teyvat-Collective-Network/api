@@ -11,6 +11,8 @@ const snowflake = (description?: string) =>
 const id = (description?: string) =>
     t.String({ pattern: "^[a-z-]{1,32}$", default: "id", description, error: "Invalid ID: must be 1-32 lowercase letters or dashes." });
 
+const reason = t.String({ minLength: 1, maxLength: 256, description: "The reason for this action.", error: "Audit log reason must be 1-256 characters." });
+
 export const fields = {
     docId: t.String({
         minLength: 24,
@@ -223,4 +225,5 @@ export default {
         author: snowflake("The ID of the author of this document."),
         ...objects.tcnDoc,
     }),
+    reason: (required: boolean = false) => (required ? reason : t.Optional(reason)),
 };
