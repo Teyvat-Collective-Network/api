@@ -21,6 +21,7 @@ enum codes {
     MISSING_BANSHARE,
     MISSING_CROSSPOST,
     MISSING_DOCUMENT,
+    MISSING_AUDIT_LOG_ENTRY,
 }
 
 export default codes;

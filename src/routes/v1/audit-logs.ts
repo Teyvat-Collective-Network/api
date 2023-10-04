@@ -5,6 +5,9 @@ import { trim } from "../../lib/utils.js";
 import schemas from "../../lib/schemas.js";
 import db from "../../lib/db.js";
 import { AuditLogEntry } from "../../lib/types.js";
+import { AuditLogAction } from "../../lib/audit.js";
+import { APIError } from "../../lib/errors.js";
+import codes from "../../lib/codes.js";
 
 export default (app: App) =>
     app.group("/audit-logs", (app) =>
@@ -44,5 +47,38 @@ export default (app: App) =>
                     response: t.Array(schemas.auditLogEntry),
                 },
             )
-            .use((app) => app),
+            .get(
+                "/:uuid",
+                async ({ params: { uuid }, query: { action } }) => {
+                    const doc = (await db.audit_logs.findOne({ uuid, ...(action ? { action } : {}) })) as unknown as AuditLogEntry;
+                    if (!doc)
+                        throw new APIError(
+                            404,
+                            codes.MISSING_AUDIT_LOG_ENTRY,
+                            `No audit log entry exists with ID ${uuid}${action ? ` and action type ${action}` : ""}.`,
+                        );
+
+                    return { ...doc, token: undefined };
+                },
+                {
+                    beforeHandle: [isSignedIn, isObserver, hasScope("audit-logs/read")],
+                    detail: {
+                        tags: ["V1"],
+                        summary: "Get an audit log entry.",
+                        description: trim(`
+                            \`\`\`
+                            Scope: audit-logs/read
+                            \`\`\`
+
+                            Fetch an audit log entry. Observer-only. Set the query parameter to return 404 if the wrong type is found.
+                        `),
+                    },
+                    params: t.Object({
+                        uuid: t.Numeric({ minimum: 1, description: "The audit log entry UUID." }),
+                    }),
+                    query: t.Object({
+                        action: t.Optional(t.String({ description: "Require the entry to be of this action type." })),
+                    }),
+                },
+            ),
     );
