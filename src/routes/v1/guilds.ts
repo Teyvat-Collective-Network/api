@@ -138,7 +138,7 @@ export default (app: App) =>
                             { $set: { "data.invite": body.invite, "data.name": body.name !== doc.name ? body.name : undefined } },
                         );
 
-                    audit(user, AuditLogAction.GUILDS_EDIT, { id, changes: changes(doc, body) }, reason);
+                    audit(user, AuditLogAction.GUILDS_EDIT, { id, name: body.name ?? doc.name, changes: changes(doc, body) }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
