@@ -6,11 +6,11 @@ import bot from "../../lib/bot.js";
 import { hasScope, isCouncil, isObserver, isSignedIn, ratelimitApply, ratelimitCheck } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
-import db from "../../lib/db.js";
+import db, { withSession } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
 import { Banshare, BanshareSettings } from "../../lib/types.js";
-import { trim } from "../../lib/utils.js";
+import { changes, trim } from "../../lib/utils.js";
 
 export default (app: App) =>
     app.group("/banshares", (app) =>
@@ -187,6 +187,7 @@ export default (app: App) =>
 
                     const doc = await db.banshares.findOneAndUpdate({ message, status: "pending" }, { $set: { severity } });
                     if (!doc) throw new APIError(400, codes.INVALID_STATE, "That banshare is no longer pending.");
+                    if (doc.severity === severity) throw new APIError(400, codes.NOT_MODIFIED, "No changes were made.");
 
                     try {
                         await bot(bearer!, `PATCH /banshares/${message}/severity/${severity}`);
@@ -195,7 +196,7 @@ export default (app: App) =>
                         throw error;
                     }
 
-                    audit(user, AuditLogAction.BANSHARES_SEVERITY, { message, severity });
+                    audit(user, AuditLogAction.BANSHARES_SEVERITY, { message, changes: { severity: [doc.severity, severity] } });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -342,11 +343,13 @@ export default (app: App) =>
             )
             .post(
                 "/:message/execute/:guild",
-                async ({ bearer, params: { message, guild }, user }) => {
+                async ({ bearer, params: { message, guild }, query, user }) => {
                     if ((await db.banshares.countDocuments({ message })) === 0)
                         throw new APIError(404, codes.MISSING_BANSHARE, `No banshare exists with message ID ${message}.`);
 
-                    if ((await db.banshare_settings.countDocuments({ guild, nobutton: true })) > 0)
+                    const auto = query.auto === "true";
+
+                    if (!auto && (await db.banshare_settings.countDocuments({ guild, nobutton: true })) > 0)
                         throw new APIError(400, codes.FEATURE_DISABLED, `This guild has disabled the ban button setting.`);
 
                     const doc = await db.banshares.findOneAndUpdate(
@@ -356,14 +359,15 @@ export default (app: App) =>
 
                     if (!doc) throw new APIError(400, codes.INVALID_STATE, "That banshare is already executed or was rescinded.");
 
-                    try {
-                        await bot(bearer!, `POST /banshares/${message}/execute/${guild}`);
-                    } catch (error) {
-                        await db.banshares.updateOne({ message }, { $unset: { [`executors.${guild}`]: 0 } });
-                        throw error;
-                    }
+                    if (!auto)
+                        try {
+                            await bot(bearer!, `POST /banshares/${message}/execute/${guild}`);
+                        } catch (error) {
+                            await db.banshares.updateOne({ message }, { $unset: { [`executors.${guild}`]: 0 } });
+                            throw error;
+                        }
 
-                    audit(user, AuditLogAction.BANSHARES_EXECUTE, { message, guild });
+                    audit(user, AuditLogAction.BANSHARES_EXECUTE, { auto, message, guild });
                 },
                 {
                     beforeHandle: [isSignedIn, checkBansharePermissions, hasScope("banshares/execute"), ratelimitCheck("edit-banshare", 3000, 2)],
@@ -384,6 +388,9 @@ export default (app: App) =>
                     params: t.Object({
                         message: schemas.snowflake("The ID of the message of the banshare."),
                         guild: schemas.snowflake("The ID of the guild in which to execute the banshare."),
+                    }),
+                    query: t.Object({
+                        auto: t.Optional(t.String({ description: "If true, marks the execution as an autoban action. Observer-only." })),
                     }),
                 },
             )
@@ -417,12 +424,18 @@ export default (app: App) =>
                 async ({ bearer, body, internal, params: { guild }, user }) => {
                     await checkChannel(bearer!, internal, guild, body.channel as string);
 
-                    const doc = ((await db.banshare_settings.findOneAndUpdate({ guild }, { $set: body }, { upsert: true, returnDocument: "after" })) ??
-                        {}) as unknown as Partial<BanshareSettings>;
+                    let old: any;
+                    let doc: Partial<BanshareSettings>;
 
-                    audit(user, AuditLogAction.BANSHARES_SETTINGS, { guild, ...body });
+                    await withSession(async () => {
+                        old = await db.banshare_settings.findOneAndUpdate({ guild }, { $set: body }, { upsert: true });
+                        doc = (await db.banshare_settings.findOne({ guild })) as unknown as Partial<BanshareSettings>;
+                    }).catch(() => {
+                        throw new APIError(500, codes.INTERNAL_SERVER_ERROR, "An error occurred saving your settings.");
+                    });
 
-                    return formatBanshareSettings(doc);
+                    audit(user, AuditLogAction.BANSHARES_SETTINGS, { guild, changes: changes(old, body) });
+                    return formatBanshareSettings(doc!);
                 },
                 {
                     beforeHandle: [isSignedIn, checkOwnership, hasScope("banshares/settings")],
@@ -646,8 +659,11 @@ export default (app: App) =>
             .delete(
                 "/:message",
                 async ({ params: { message }, reason, user }) => {
-                    await db.banshares.deleteOne({ message });
-                    audit(user, AuditLogAction.BANSHARES_DELETE, { message }, reason);
+                    const doc = await db.banshares.findOneAndDelete({ message });
+                    if (!doc) throw new APIError(404, codes.MISSING_BANSHARE, `No banshare exists with message ID ${message}.`);
+
+                    await db.deleted_banshares.insertOne(doc);
+                    audit(user, AuditLogAction.BANSHARES_DELETE, doc, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage")],

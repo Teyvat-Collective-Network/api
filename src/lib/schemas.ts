@@ -226,4 +226,11 @@ export default {
         ...objects.tcnDoc,
     }),
     reason: (required: boolean = false) => (required ? reason : t.Optional(reason)),
+    auditLogEntry: t.Object({
+        time: t.Integer({ description: "The timestamp at which the action occurred." }),
+        user: snowflake("The ID of the user who took the action."),
+        action: t.String({ description: "The unique code for the action type." }),
+        data: t.Any({ description: "Context for the action." }),
+        reason: t.Nullable(t.String({ description: "The provided reason for the action." })),
+    }),
 };

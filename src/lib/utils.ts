@@ -23,6 +23,11 @@ export function nonempty(record: any) {
     if (Object.keys(record).length === 0) throw new APIError(400, codes.NOT_MODIFIED, "No changes were made.");
 }
 
-export function changed(oldValue: any, newValue: any) {
-    return newValue !== undefined && oldValue !== newValue;
+export function changes(before: Record<string, any>, after: Record<string, any>): Record<string, [any, any]> {
+    const output: Record<string, [any, any]> = {};
+
+    for (const key of Object.keys(before)) if (after[key] !== undefined && after[key] !== before[key]) output[key] = [before[key], after[key]];
+    for (const key of Object.keys(after)) if (!(key in before)) output[key] = [null, after[key]];
+
+    return output;
 }

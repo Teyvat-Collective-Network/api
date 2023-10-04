@@ -8,7 +8,7 @@ import db, { withSession } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
 import { Attribute } from "../../lib/types.js";
-import { changed, nonempty, trim } from "../../lib/utils.js";
+import { changes, nonempty, trim } from "../../lib/utils.js";
 
 export default (app: App) =>
     app.group("/attributes", (app) =>
@@ -91,26 +91,44 @@ export default (app: App) =>
                 "/:type/:id",
                 async ({ body, params: { type, id }, reason, user }) => {
                     const doc = await data.getAttribute(type, id);
+                    const newId = body.id && body.id !== id ? body.id : null;
 
-                    if (body.id && (await db.attributes.countDocuments({ type, id: body.id })) > 0)
-                        throw new APIError(409, codes.DUPLICATE, `An attribute already exists with type ${type} and ID ${body.id}.`);
+                    if (newId && (await db.attributes.countDocuments({ type, id: newId })) > 0)
+                        throw new APIError(409, codes.DUPLICATE, `An attribute already exists with type ${type} and ID ${newId}.`);
 
                     const $set: any = {};
 
-                    for (const key of ["id", "name", "emoji"] as const) if (changed(doc[key], body[key])) $set[key] = body[key];
+                    if (newId) $set.id = newId;
+                    if (body.name && body.name !== doc.name) $set.name = body.name;
+                    if (body.emoji && body.emoji !== doc.emoji) $set.emoji = body.emoji;
 
                     nonempty($set);
 
                     await withSession(async () => {
                         await db.attributes.updateOne({ type, id }, { $set });
 
-                        if (body.id) {
-                            await db.audit_logs.updateMany({ type, id }, { $set: { id: body.id } });
-                            await db.characters.updateMany({ [`attributes.${type}`]: id }, { $set: { [`attributes.${type}`]: body.id } });
+                        if (newId) {
+                            await db.audit_logs.updateMany(
+                                { action: { $in: [AuditLogAction.ATTRIBUTES_CREATE, AuditLogAction.ATTRIBUTES_EDIT] }, "data.type": type, "data.id": id },
+                                { $set: { "data.id": newId } },
+                            );
+
+                            await db.audit_logs.updateMany(
+                                { action: { $in: [AuditLogAction.CHARACTERS_CREATE, AuditLogAction.CHARACTERS_DELETE] }, [`data.attributes.${type}`]: id },
+                                { $set: { [`data.attributes.${type}`]: newId } },
+                            );
+
+                            for (const x of [0, 1])
+                                await db.audit_logs.updateMany(
+                                    { action: AuditLogAction.CHARACTERS_EDIT, [`data.changes.attributes/${type}.${x}`]: id },
+                                    { $set: { [`data.changes.attributes/${type}.${x}`]: newId } },
+                                );
+
+                            await db.characters.updateMany({ [`attributes.${type}`]: id }, { $set: { [`attributes.${type}`]: newId } });
                         }
                     });
 
-                    audit(user, AuditLogAction.ATTRIBUTES_EDIT, { ...$set, type, id, ...(body.id ? { oldId: id, newId: body.id } : {}) }, reason);
+                    audit(user, AuditLogAction.ATTRIBUTES_EDIT, { type, id: newId ?? id, changes: changes(doc, body) }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("attributes/write")],
@@ -141,14 +159,14 @@ export default (app: App) =>
             .delete(
                 "/:type/:id",
                 async ({ params: { type, id }, reason, user }) => {
-                    const attr = await data.getAttribute(type, id);
+                    const doc = await data.getAttribute(type, id);
 
                     await withSession(async () => {
                         await db.attributes.deleteOne({ type, id });
                         await db.characters.updateMany({ [`attributes.${type}`]: id }, { $unset: { [`attributes.${type}`]: 0 } });
                     });
 
-                    audit(user, AuditLogAction.ATTRIBUTES_DELETE, { type, id }, reason);
+                    audit(user, AuditLogAction.ATTRIBUTES_DELETE, doc, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("attributes/delete")],

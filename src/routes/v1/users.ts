@@ -73,7 +73,7 @@ export default (app: App) =>
                 "/:id",
                 async ({ body, params: { id }, reason, user }) => {
                     await db.users.updateOne({ id }, { $set: body }, { upsert: true });
-                    audit(user, AuditLogAction.USERS_EDIT, { id, ...body }, reason);
+                    audit(user, body.observer ? AuditLogAction.USERS_PROMOTE : AuditLogAction.USERS_DEMOTE, { id }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],

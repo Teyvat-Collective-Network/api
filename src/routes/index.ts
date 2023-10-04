@@ -1,5 +1,6 @@
 import { App } from "../lib/app.js";
 import attributes from "./v1/attributes.js";
+import auditLogs from "./v1/audit-logs.js";
 import auth from "./v1/auth.js";
 import banshares from "./v1/banshares.js";
 import characters from "./v1/characters.js";
@@ -11,4 +12,6 @@ import submit from "./v1/submit.js";
 import users from "./v1/users.js";
 
 export default (app: App) =>
-    app.group("/v1", (app) => app.use(root).use(auth).use(users).use(guilds).use(attributes).use(characters).use(events).use(submit).use(banshares).use(docs));
+    app.group("/v1", (app) =>
+        app.use(root).use(auth).use(users).use(guilds).use(attributes).use(characters).use(events).use(submit).use(banshares).use(docs).use(auditLogs),
+    );

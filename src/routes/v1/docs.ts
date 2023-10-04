@@ -8,7 +8,7 @@ import db from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas, { fields, tcnDocEmbedData } from "../../lib/schemas.js";
 import { TCNDoc, TCNDocEmbedData } from "../../lib/types.js";
-import { trim } from "../../lib/utils.js";
+import { changes, trim } from "../../lib/utils.js";
 
 export default (app: App) =>
     app.group("/docs", (app) =>
@@ -128,8 +128,48 @@ export default (app: App) =>
 
                     if (!user!.observer) body.official = false;
 
+                    const $set: any = {};
+
+                    for (const key of Object.keys(body))
+                        if (key !== "allowlist" && body[key] !== undefined && body[key] !== (doc as any)[key]) $set[key] = body[key];
+
+                    const allowAdd: string[] = [];
+                    const allowRemove: string[] = [];
+
+                    if (Array.isArray(body.allowlist)) {
+                        for (const x of body.allowlist) if (!doc.allowlist.includes(x)) allowAdd.push(x);
+                        for (const x of doc.allowlist) if (!body.allowlist.includes(x)) allowRemove.push(x);
+                    }
+
+                    if (allowAdd.length + allowRemove.length > 0) $set.allowlist = body.allowlist;
+
+                    if (Object.keys($set).length === 0) return;
+
+                    const changelist = changes(doc, body);
+                    if (changelist.allowlist) delete changelist.allowlist;
+                    if (allowAdd.length > 0) changelist.allowAdd = [, allowAdd];
+                    if (allowRemove.length > 0) changelist.allowRemove = [, allowRemove];
+
                     await db.docs.updateOne({ id }, { $set: body });
-                    audit(user, AuditLogAction.DOCS_EDIT, { id, ...body });
+
+                    if (body.title && body.title !== doc.title)
+                        await db.audit_logs.updateMany(
+                            {
+                                action: {
+                                    $in: [
+                                        AuditLogAction.DOCS_CREATE,
+                                        AuditLogAction.DOCS_DELETE,
+                                        AuditLogAction.DOCS_EDIT,
+                                        AuditLogAction.DOCS_OFFICIAL_ADD,
+                                        AuditLogAction.DOCS_OFFICIAL_REMOVE,
+                                    ],
+                                },
+                                "data.id": id,
+                            },
+                            { $set: { "data.title": body.title } },
+                        );
+
+                    audit(user, AuditLogAction.DOCS_EDIT, { id, author: doc.author, title: body.title ?? doc.title, changes: changelist });
                 },
                 {
                     beforeHandle: [isSignedIn, isCouncil, hasScope("docs/write")],
@@ -157,7 +197,7 @@ export default (app: App) =>
                     const doc = await db.docs.findOneAndUpdate({ id }, { $set: { deleted: true } });
                     if (!doc) throw new APIError(404, codes.MISSING_DOCUMENT, `No document exists with ID ${id}.`);
 
-                    audit(user, AuditLogAction.DOCS_DELETE, { id }, reason);
+                    audit(user, AuditLogAction.DOCS_DELETE, { id, author: doc.author, title: doc.title }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("docs/delete")],
@@ -184,7 +224,12 @@ export default (app: App) =>
                     const doc = await db.docs.findOneAndUpdate({ id }, { $set: { official } });
                     if (!doc) throw new APIError(404, codes.MISSING_DOCUMENT, `No document exists with ID ${id}.`);
 
-                    audit(user, official ? AuditLogAction.DOCS_OFFICIAL_ADD : AuditLogAction.DOCS_OFFICIAL_REMOVE, { id }, reason);
+                    audit(
+                        user,
+                        official ? AuditLogAction.DOCS_OFFICIAL_ADD : AuditLogAction.DOCS_OFFICIAL_REMOVE,
+                        { id, author: doc.author, title: doc.title },
+                        reason,
+                    );
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("docs/official")],

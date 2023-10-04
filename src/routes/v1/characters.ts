@@ -7,7 +7,7 @@ import data from "../../lib/data.js";
 import db, { withSession } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
-import { changed, nonempty, trim } from "../../lib/utils.js";
+import { changes, nonempty, trim } from "../../lib/utils.js";
 
 export default (app: App) =>
     app.group("/characters", (app) =>
@@ -82,24 +82,34 @@ export default (app: App) =>
                 "/:id",
                 async ({ body, params: { id }, reason, user }) => {
                     const doc = await data.getCharacter(id);
+                    const newId = body.id && body.id !== id ? body.id : null;
 
-                    if (changed(doc.id, body.id) && (await db.characters.countDocuments({ id: body.id })) > 0)
-                        throw new APIError(409, codes.DUPLICATE, `A character already exists with ID ${body.id}.`);
+                    if (newId && (await db.characters.countDocuments({ id: newId })) > 0)
+                        throw new APIError(409, codes.DUPLICATE, `A character already exists with ID ${newId}.`);
 
                     const $set: any = {};
                     const $unset: any = {};
 
-                    for (const key of ["id", "name"] as const) if (changed(doc[key], body[key])) $set[key] = body[key];
+                    if (newId) $set.id = newId;
+                    if (body.name && body.name !== doc.name) $set.name = body.name;
 
                     if (body.short !== undefined)
                         if (body.short === null && doc.short) $unset.short = 0;
                         else if (body.short !== null && doc.short !== body.short) $set.short = body.short;
 
+                    const changelist = changes(doc, body);
+                    for (const key of Object.keys(changelist)) if (!["name", "short"].includes(key)) delete changelist[key];
+
                     for (const [type, id] of Object.entries((body.attributes as Record<string, string>) ?? {}))
                         if (id === null) {
-                            if (doc.attributes[type]) $unset[`attributes.${type}`] = 0;
-                        } else if (changed(doc.attributes[type], id)) {
+                            if (doc.attributes[type]) {
+                                changelist[`attributes/${type}`] = [doc.attributes[type], null];
+                                $unset[`attributes.${type}`] = 0;
+                            }
+                        } else if (doc.attributes[type] !== id) {
                             await data.getAttribute(type, id);
+
+                            changelist[`attributes/${type}`] = [doc.attributes[type] || null, id];
                             $set[`attributes.${type}`] = id;
                         }
 
@@ -107,10 +117,26 @@ export default (app: App) =>
 
                     await withSession(async () => {
                         await db.characters.updateOne({ id }, { $set, $unset });
-                        if (body.id) await db.guilds.updateMany({ mascot: id }, { $set: { mascot: body.id } });
+
+                        if (newId) {
+                            await db.audit_logs.updateMany(
+                                { action: { $in: [AuditLogAction.CHARACTERS_DELETE, AuditLogAction.CHARACTERS_EDIT] }, "data.id": id },
+                                { $set: { "data.id": newId } },
+                            );
+
+                            await db.audit_logs.updateMany(
+                                {
+                                    action: { $in: [AuditLogAction.GUILDS_CREATE, AuditLogAction.GUILDS_DELETE, AuditLogAction.GUILDS_EDIT] },
+                                    "data.mascot": id,
+                                },
+                                { $set: { "data.mascot": newId } },
+                            );
+
+                            await db.guilds.updateMany({ mascot: id }, { $set: { mascot: newId } });
+                        }
                     });
 
-                    audit(user, AuditLogAction.CHARACTERS_EDIT, { id, ...body }, reason);
+                    audit(user, AuditLogAction.CHARACTERS_EDIT, { id: body.id ?? id, changes: changelist }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/write")],
@@ -147,17 +173,17 @@ export default (app: App) =>
             .delete(
                 "/:id",
                 async ({ params: { id }, reason, user }) => {
-                    const { name } = await data.getCharacter(id);
+                    const char = await data.getCharacter(id);
 
                     if ((await db.guilds.countDocuments({ mascot: id })) > 0)
                         throw new APIError(
                             400,
                             codes.INVALID_BODY,
-                            `At least one guild still has ${name} as their mascot and therefore the character cannot be deleted.`,
+                            `At least one guild still has ${char.name} as their mascot and therefore the character cannot be deleted.`,
                         );
 
                     await db.characters.deleteOne({ id });
-                    audit(user, AuditLogAction.CHARACTERS_DELETE, { id }, reason);
+                    audit(user, AuditLogAction.CHARACTERS_DELETE, char, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("characters/delete")],

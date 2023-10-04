@@ -4,10 +4,10 @@ import audit, { AuditLogAction, headers, requiredError } from "../../lib/audit.j
 import { checkPermissions, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
-import db, { autoinc } from "../../lib/db.js";
+import db, { autoinc, withSession } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
-import { trim } from "../../lib/utils.js";
+import { changes, trim } from "../../lib/utils.js";
 
 export default (app: App) =>
     app.group("/events", (app) =>
@@ -73,13 +73,54 @@ export default (app: App) =>
             .patch(
                 "/:id",
                 async ({ body, params: { id }, user }) => {
-                    const entry = await data.getEvent(id);
+                    const doc = await data.getEvent(id);
 
-                    if (!user!.observer && entry.owner !== user!.id)
+                    if (!user!.observer && doc.owner !== user!.id)
                         throw new APIError(403, codes.FORBIDDEN, `Only observers and the event owner may edit an event.`);
 
-                    await db.events.updateOne({ id }, { $set: body });
-                    audit(user, AuditLogAction.EVENTS_EDIT, { id, ...body });
+                    const $set: any = {};
+
+                    for (const key of Object.keys(body))
+                        if (key !== "invites" && body[key] !== undefined && body[key] !== (doc as any)[key]) $set[key] = body[key];
+
+                    const inviteAdd: string[] = [];
+                    const inviteRemove: string[] = [];
+
+                    if (Array.isArray(body.invites)) {
+                        for (const x of body.invites) if (!doc.invites.includes(x)) inviteAdd.push(x);
+                        for (const x of doc.invites) if (!body.invites.includes(x)) inviteRemove.push(x);
+                    }
+
+                    if (inviteAdd.length + inviteRemove.length > 0) $set.invites = body.invites;
+
+                    if (Object.keys($set).length === 0) return;
+
+                    const changelist = changes(doc, body);
+                    if (changelist.invites) delete changelist.invites;
+                    if (inviteAdd.length > 0) changelist.inviteAdd = [, inviteAdd];
+                    if (inviteRemove.length > 0) changelist.inviteRemove = [, inviteRemove];
+
+                    await withSession(async () => {
+                        await db.events.updateOne({ id }, { $set: body });
+
+                        if (body.title !== doc.title)
+                            await db.audit_logs.updateMany(
+                                {
+                                    actions: {
+                                        $in: [
+                                            AuditLogAction.EVENTS_CREATE,
+                                            AuditLogAction.EVENTS_DELETE_OTHER,
+                                            AuditLogAction.EVENTS_DELETE_SELF,
+                                            AuditLogAction.EVENTS_EDIT,
+                                        ],
+                                    },
+                                    "data.id": id,
+                                },
+                                { $set: { "data.title": body.title } },
+                            );
+                    });
+
+                    audit(user, AuditLogAction.EVENTS_EDIT, { id, title: body.title ?? doc.title, changes: changelist });
                 },
                 {
                     beforeHandle: [isSignedIn],
@@ -107,15 +148,15 @@ export default (app: App) =>
             .delete(
                 "/:id",
                 async ({ params: { id }, reason, user }) => {
-                    const entry = await data.getEvent(id);
+                    const doc = await data.getEvent(id);
 
-                    if (!user!.observer && entry.owner !== user!.id)
+                    if (!user!.observer && doc.owner !== user!.id)
                         throw new APIError(403, codes.FORBIDDEN, `Only observers and the event owner may delete an event.`);
 
-                    if (entry.owner !== user!.id && !reason) throw new APIError(400, codes.INVALID_BODY, requiredError);
+                    if (doc.owner !== user!.id && !reason) throw new APIError(400, codes.INVALID_BODY, requiredError);
 
                     await db.events.deleteOne({ id });
-                    audit(user, entry.owner === user!.id ? AuditLogAction.EVENTS_DELETE_SELF : AuditLogAction.EVENTS_DELETE_OTHER, { id }, reason);
+                    audit(user, doc.owner === user!.id ? AuditLogAction.EVENTS_DELETE_SELF : AuditLogAction.EVENTS_DELETE_OTHER, doc, reason);
                 },
                 {
                     beforeHandle: [isSignedIn],

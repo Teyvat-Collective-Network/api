@@ -110,3 +110,13 @@ export type TCNDoc = {
     title: string;
     body: string;
 } & TCNDocEmbedData;
+
+export type AuditLogEntry = {
+    uuid: number;
+    time: number;
+    user: string;
+    token: string;
+    action: string;
+    data: any;
+    reason: string | null;
+};

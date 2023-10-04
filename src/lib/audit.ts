@@ -1,5 +1,5 @@
 import { t } from "elysia";
-import db from "./db.js";
+import db, { autoinc } from "./db.js";
 import { User } from "./types.js";
 import { stripMongoIds } from "./utils.js";
 
@@ -38,7 +38,8 @@ export enum AuditLogAction {
     GUILDS_CREATE = "guilds/create",
     GUILDS_DELETE = "guilds/delete",
     GUILDS_EDIT = "guilds/edit",
-    USERS_EDIT = "users/edit",
+    USERS_DEMOTE = "users/demote",
+    USERS_PROMOTE = "users/promote",
     USERS_ROLES_ADD = "users/roles/add",
     USERS_ROLES_REMOVE = "users/roles/remove",
     USERS_STAFF_ADD = "users/staff/add",
@@ -46,7 +47,8 @@ export enum AuditLogAction {
 }
 
 export default async function (user: (User & { token: string }) | undefined, action: AuditLogAction, data?: any, reason?: string | null) {
-    await db.audit_logs.insertOne({ time: Date.now(), user: user!.id, token: user!.token, action, data: stripMongoIds(data), reason: reason || null });
+    const uuid = await autoinc("audit-logs");
+    await db.audit_logs.insertOne({ uuid, time: Date.now(), user: user!.id, token: user!.token, action, data: stripMongoIds(data), reason: reason || null });
 }
 
 export const requiredError = "Audit log reason is required and must be 1-256 characters.";

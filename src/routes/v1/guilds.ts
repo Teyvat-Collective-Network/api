@@ -7,7 +7,7 @@ import data from "../../lib/data.js";
 import db, { withSession } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
-import { trim } from "../../lib/utils.js";
+import { changes, trim } from "../../lib/utils.js";
 import { validateInvite } from "../../lib/validators.js";
 
 export default (app: App) =>
@@ -103,7 +103,7 @@ export default (app: App) =>
             .patch(
                 "/:id",
                 async ({ bearer, body, params: { id }, reason, user }) => {
-                    const guild = await data.getGuild(id);
+                    const doc = await data.getGuild(id);
 
                     const $set: any = {};
                     const $unset: any = {};
@@ -120,18 +120,25 @@ export default (app: App) =>
 
                     if (body.advisor !== undefined)
                         if (body.advisor === null)
-                            if (body.delegated ?? guild.delegated)
+                            if (body.delegated ?? doc.delegated)
                                 throw new APIError(400, codes.INVALID_BODY, "The advisor cannot be removed while delegation is enabled.");
                             else $unset.advisor = 0;
                         else $set.advisor = body.advisor;
 
                     if (body.delegated !== undefined)
-                        if (body.delegated && ((!guild.advisor && !body.advisor) || body.advisor === null))
+                        if (body.delegated && ((!doc.advisor && !body.advisor) || body.advisor === null))
                             throw new APIError(400, codes.INVALID_BODY, "Delegation cannot be enabled if the guild has no advisor.");
                         else $set.delegated = body.delegated;
 
                     await db.guilds.updateOne({ id }, { $set, $unset });
-                    audit(user, AuditLogAction.GUILDS_EDIT, { id, ...body }, reason);
+
+                    if (body.invite || body.name !== doc.name)
+                        await db.audit_logs.updateOne(
+                            { actions: { $in: [AuditLogAction.GUILDS_CREATE, AuditLogAction.GUILDS_EDIT] }, "data.id": id },
+                            { $set: { "data.invite": body.invite, "data.name": body.name !== doc.name ? body.name : undefined } },
+                        );
+
+                    audit(user, AuditLogAction.GUILDS_EDIT, { id, changes: changes(doc, body) }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -162,14 +169,14 @@ export default (app: App) =>
             .delete(
                 "/:id",
                 async ({ params: { id }, reason, user }) => {
-                    await data.getGuild(id);
+                    const guild = await data.getGuild(id);
 
                     await withSession(async () => {
                         await db.guilds.deleteOne({ id });
                         await db.banshare_settings.deleteOne({ guild: id });
                     });
 
-                    audit(user, AuditLogAction.GUILDS_DELETE, { id }, reason);
+                    audit(user, AuditLogAction.GUILDS_DELETE, guild, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/delete")],
