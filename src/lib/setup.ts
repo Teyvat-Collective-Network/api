@@ -10,5 +10,5 @@ export default async function () {
     await db.banshares.createIndex(["message"]);
     await db.banshare_settings.createIndex(["guild"]);
 
-    await db.users.updateOne({ id: Bun.env.ADMIN! }, { $set: { observer: true } }, { upsert: true });
+    await db.users.updateOne({ id: Bun.env.ADMIN! }, { $set: { observer: true }, $setOnInsert: { observerSince: Date.now() } }, { upsert: true });
 }

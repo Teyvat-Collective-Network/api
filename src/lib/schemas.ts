@@ -109,6 +109,7 @@ export default {
         voter: t.Boolean({ description: "Whether or not the user is the designated voter for a TCN guild." }),
         council: t.Boolean({ description: "Whether or not the user is a TCN council member." }),
         staff: t.Boolean({ description: "Whether or not the user is a staff member in a TCN guild." }),
+        observerSince: t.Integer({ description: "The millisecond timestamp at which this user's current term began. Undefined behavior for non-observers." }),
     }),
     guild: t.Object({
         id: snowflake("The guild's Discord ID."),
@@ -227,6 +228,10 @@ export default {
     }),
     reason: (required: boolean = false) => (required ? reason : t.Optional(reason)),
     auditLogEntry: t.Object({
+        hidden: t.Boolean({
+            description: "If true, hide the entry in the membership changes page. This is client-side and entries are still returned, just not shown.",
+        }),
+        uuid: t.Integer({ description: "A unique auto-incrementing ID for audit log entries." }),
         time: t.Integer({ description: "The timestamp at which the action occurred." }),
         user: snowflake("The ID of the user who took the action."),
         action: t.String({ description: "The unique code for the action type." }),

@@ -72,7 +72,12 @@ export default (app: App) =>
             .patch(
                 "/:id",
                 async ({ body, params: { id }, reason, user }) => {
-                    await db.users.updateOne({ id }, { $set: body }, { upsert: true });
+                    const $set: any = body;
+
+                    if (body.observer === true) $set.observerSince = Date.now();
+                    if (body.observer === false) $set.observerSince = 0;
+
+                    await db.users.updateOne({ id }, { $set }, { upsert: true });
                     audit(user, body.observer ? AuditLogAction.USERS_PROMOTE : AuditLogAction.USERS_DEMOTE, { id }, reason);
                 },
                 {

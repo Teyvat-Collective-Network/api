@@ -132,13 +132,20 @@ export default (app: App) =>
 
                     await db.guilds.updateOne({ id }, { $set, $unset });
 
-                    if (body.invite || body.name !== doc.name)
-                        await db.audit_logs.updateOne(
-                            { actions: { $in: [AuditLogAction.GUILDS_CREATE, AuditLogAction.GUILDS_EDIT] }, "data.id": id },
-                            { $set: { "data.invite": body.invite, "data.name": body.name !== doc.name ? body.name : undefined } },
+                    if (body.invite || (body.name && body.name !== doc.name))
+                        await db.audit_logs.updateMany(
+                            { action: { $in: [AuditLogAction.GUILDS_CREATE, AuditLogAction.GUILDS_EDIT] }, "data.id": id },
+                            { $set: { "data.invite": body.invite, "data.name": body.name && body.name !== doc.name ? body.name : undefined } },
                         );
 
-                    audit(user, AuditLogAction.GUILDS_EDIT, { id, name: body.name ?? doc.name, changes: changes(doc, body) }, reason);
+                    const changelist = changes(doc, body);
+                    if (changelist.delegated)
+                        changelist.voter = [
+                            changelist.delegated[0] ? doc.advisor : doc.owner,
+                            changelist.delegated[1] ? body.advisor ?? doc.advisor : body.owner ?? doc.owner,
+                        ];
+
+                    audit(user, AuditLogAction.GUILDS_EDIT, { id, name: body.name ?? doc.name, changes: changelist }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],

@@ -3,7 +3,7 @@ import db from "./db.js";
 import { APIError } from "./errors.js";
 import type { Attribute, CalendarEvent, Character, Guild, User, UserGuild } from "./types.js";
 
-const baseUser = (id: string, observer?: boolean, roles?: string[]): User => ({
+const baseUser = (id: string, observer?: boolean, roles?: string[], observerSince?: number): User => ({
     id,
     guilds: {},
     roles: roles ?? [],
@@ -13,6 +13,7 @@ const baseUser = (id: string, observer?: boolean, roles?: string[]): User => ({
     voter: false,
     council: false,
     staff: false,
+    observerSince: observerSince ?? 0,
 });
 
 const baseUserGuild = (): UserGuild => ({ owner: false, advisor: false, voter: false, council: false, staff: false, roles: [] });
@@ -36,7 +37,7 @@ export default {
     async getUser(id: string): Promise<User> {
         const entry = (await db.users.findOne({ id })) as unknown as User;
 
-        const user = baseUser(id, entry?.observer ?? false, entry?.roles ?? []);
+        const user = baseUser(id, entry?.observer ?? false, entry?.roles ?? [], entry?.observerSince);
 
         for (const guild of await this.getGuilds()) {
             const get = () => (user.guilds[guild.id] ??= baseUserGuild());

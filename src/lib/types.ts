@@ -17,6 +17,7 @@ export type User = {
     voter: boolean;
     council: boolean;
     staff: boolean;
+    observerSince: number;
 };
 
 export type GuildUser = {
@@ -112,6 +113,7 @@ export type TCNDoc = {
 } & TCNDocEmbedData;
 
 export type AuditLogEntry = {
+    hidden: boolean;
     uuid: number;
     time: number;
     user: string;
