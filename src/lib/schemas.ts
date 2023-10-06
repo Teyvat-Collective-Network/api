@@ -238,4 +238,15 @@ export default {
         data: t.Any({ description: "Context for the action." }),
         reason: t.Nullable(t.String({ description: "The provided reason for the action." })),
     }),
+    observationRecord: t.Object({
+        uuid: t.Integer({ description: "A unique auto-incrementing ID for observation records." }),
+        id: snowflake("The ID of the guild."),
+        hidden: t.Boolean({ description: "If true, hide the entry." }),
+        name: t.Nullable(t.String({ minLength: 0, maxLength: 64, description: "Override the name of the guild (makes non-members appear properly)." })),
+        observer: t.Nullable(snowflake("The ID of the assigned observer.")),
+        start: t.Nullable(t.Integer({ description: "The millisecond timestamp of when observation starts/started." })),
+        end: t.Nullable(t.Integer({ description: "The millisecond timestamp of when observation ends/ended (if different from 28 days after the start)." })),
+        status: t.String({ description: "The current status of the server." }),
+        notes: t.String({ maxLength: 1024, description: "Any notes regarding the server / that specific observation." }),
+    }),
 };

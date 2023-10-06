@@ -31,6 +31,7 @@ export default (app: App) =>
                                               AuditLogAction.GUILDS_DELETE,
                                               AuditLogAction.USERS_PROMOTE,
                                               AuditLogAction.USERS_DEMOTE,
+                                              AuditLogAction.USERS_TERM_REFRESH,
                                           ],
                                       },
                                   }),

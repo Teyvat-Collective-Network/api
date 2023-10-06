@@ -69,7 +69,7 @@ export const app = new Elysia()
         return { user: { ...payload, ...(await data.getUser(payload.id)), token: bearer }, internal: !!payload.internal };
     })
     .derive(async ({ headers }) => {
-        const reason = headers["x-audit-log-reason"] || null;
+        const reason = headers["x-audit-log-reason"]?.trim() || null;
         if (reason?.length === 0 || (reason && reason.length > 256)) throw new APIError(400, codes.INVALID_BODY, "Audit log reason must be 1-256 characters");
         return { reason };
     })

@@ -65,12 +65,10 @@ export default {
 
         return user;
     },
-    async getUsers(): Promise<User[]> {
+    async getUsers(filter?: any): Promise<User[]> {
         const users: Record<string, User> = {};
 
-        for (const entry of await db.users.find().toArray()) {
-            users[entry.id] = baseUser(entry.id, entry.observer, entry.roles);
-        }
+        for (const entry of await db.users.find(filter).toArray()) users[entry.id] = baseUser(entry.id, entry.observer, entry.roles, entry.observerSince);
 
         for (const guild of await this.getGuilds()) {
             const gu = (id: string) => [(users[id] ??= baseUser(id)), (users[id].guilds[guild.id] ??= baseUserGuild())];
@@ -78,7 +76,6 @@ export default {
             for (const key of ["owner", "advisor", "voter"] as const)
                 if (guild[key]) {
                     const [x, y] = gu(guild[key]!);
-
                     x[key] = y[key] = x.council = y.council = x.staff = y.staff = true;
                 }
 

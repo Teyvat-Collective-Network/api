@@ -1,14 +1,14 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
+import audit, { AuditLogAction } from "../../lib/audit.js";
 import bot from "../../lib/bot.js";
 import { hasScope, isSignedIn, ratelimitApply, ratelimitCheck } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
+import db, { autoinc } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
 import { trim } from "../../lib/utils.js";
 import { validateInvite } from "../../lib/validators.js";
-import db from "../../lib/db.js";
-import audit, { AuditLogAction } from "../../lib/audit.js";
 
 export default (app: App) =>
     app.group("", (app) =>
@@ -45,7 +45,7 @@ export default (app: App) =>
                     if (role === "other" && !roleother) abort("You must specify a role if you selected other as your role.");
                     if (role !== "owner" && !ownerid) abort("You must specify the server owner if you are not the owner.");
 
-                    const code = await validateInvite(bearer!, invite);
+                    const realInvite = await validateInvite(bearer!, invite, undefined, true);
 
                     if (!["private", "public", "no"].includes(nsfw)) abort("Invalid NSFW selection.");
 
@@ -54,10 +54,33 @@ export default (app: App) =>
                         if (!req.ok) abort("Invalid owner ID.");
                     }
 
-                    const data = { code, mascot, role, roleother, ownerid, nsfw, ...others, user: user!.id };
+                    const data = {
+                        id: realInvite.guild.id,
+                        name: realInvite.guild.name,
+                        code: realInvite.code,
+                        mascot,
+                        role,
+                        roleother,
+                        ownerid,
+                        nsfw,
+                        ...others,
+                        user: user!.id,
+                    };
 
-                    await db.applications.insertOne(data);
                     await bot(bearer!, `POST /apply`, data);
+
+                    db.observation_records.insertOne({
+                        uuid: await autoinc("observation-records"),
+                        id: realInvite.guild.id,
+                        hidden: false,
+                        name: realInvite.guild.name,
+                        observer: null,
+                        start: null,
+                        end: null,
+                        status: "pending",
+                        notes: "",
+                    });
+
                     audit(user, AuditLogAction.APPLY, data);
                 },
                 {

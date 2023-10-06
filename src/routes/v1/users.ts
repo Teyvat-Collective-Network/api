@@ -3,8 +3,10 @@ import { App } from "../../lib/app.js";
 import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import bot from "../../lib/bot.js";
 import { hasScope, isObserver, isOwner, isSignedIn } from "../../lib/checkers.js";
+import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
 import db from "../../lib/db.js";
+import { APIError } from "../../lib/errors.js";
 import schemas from "../../lib/schemas.js";
 import { trim } from "../../lib/utils.js";
 
@@ -13,8 +15,16 @@ export default (app: App) =>
         app
             .get(
                 "/",
-                async () => {
-                    return await data.getUsers();
+                async ({ query: { observers } }) => {
+                    const filter: any = {};
+
+                    if (observers === "true") filter.observer = true;
+
+                    let users = await data.getUsers(filter);
+
+                    if (observers === "true") users = users.filter((x) => x.observer);
+
+                    return users;
                 },
                 {
                     detail: {
@@ -27,6 +37,9 @@ export default (app: App) =>
                             an empty user (no roles and no guilds).
                         `),
                     },
+                    query: t.Object({
+                        observers: t.Optional(t.String({ description: "If true, only return observers." })),
+                    }),
                     response: t.Array(schemas.user),
                 },
             )
@@ -92,6 +105,31 @@ export default (app: App) =>
                             \`\`\`
 
                             Update a user, setting whether or not they are an observer. Observer-only.
+                        `),
+                    },
+                    headers: headers(true),
+                    params: t.Object({ id: schemas.snowflake("The user's Discord ID.") }),
+                },
+            )
+            .post(
+                "/:id/refresh",
+                async ({ params: { id }, reason, user }) => {
+                    const doc = await db.users.findOneAndUpdate({ id, observer: true }, { $set: { observerSince: Date.now() } });
+                    if (!doc) throw new APIError(400, codes.INVALID_BODY, "That user is not an observer.");
+
+                    audit(user, AuditLogAction.USERS_TERM_REFRESH, { id }, reason);
+                },
+                {
+                    beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
+                    detail: {
+                        tags: ["V1"],
+                        summary: "Refresh a user's observer term.",
+                        description: trim(`
+                            \`\`\`
+                            Scope: users/write
+                            \`\`\`
+
+                            Refresh a user's observer term, setting their last term start time to the present moment. Observer-only.
                         `),
                     },
                     headers: headers(true),

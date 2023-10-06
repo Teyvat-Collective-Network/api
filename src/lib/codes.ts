@@ -22,6 +22,7 @@ enum codes {
     MISSING_CROSSPOST,
     MISSING_DOCUMENT,
     MISSING_AUDIT_LOG_ENTRY,
+    MISSING_OBSERVATION_RECORD,
 }
 
 export default codes;

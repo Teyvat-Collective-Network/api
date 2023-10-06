@@ -122,3 +122,15 @@ export type AuditLogEntry = {
     data: any;
     reason: string | null;
 };
+
+export type ObservationRecord = {
+    uuid: number;
+    id: string;
+    hidden: boolean;
+    name: string | null;
+    observer: string | null;
+    start: number | null;
+    end: number | null;
+    status: string;
+    notes: string;
+};

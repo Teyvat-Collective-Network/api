@@ -38,12 +38,14 @@ export enum AuditLogAction {
     GUILDS_CREATE = "guilds/create",
     GUILDS_DELETE = "guilds/delete",
     GUILDS_EDIT = "guilds/edit",
+    OBSERVATION_RECORD_EDIT = "observation-records/edit",
     USERS_DEMOTE = "users/demote",
     USERS_PROMOTE = "users/promote",
     USERS_ROLES_ADD = "users/roles/add",
     USERS_ROLES_REMOVE = "users/roles/remove",
     USERS_STAFF_ADD = "users/staff/add",
     USERS_STAFF_REMOVE = "users/staff/remove",
+    USERS_TERM_REFRESH = "users/term/refresh",
 }
 
 export default async function (user: (User & { token: string }) | undefined, action: AuditLogAction, data?: any, reason?: string | null) {

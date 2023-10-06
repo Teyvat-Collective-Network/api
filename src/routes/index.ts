@@ -7,11 +7,24 @@ import characters from "./v1/characters.js";
 import docs from "./v1/docs.js";
 import events from "./v1/events.js";
 import guilds from "./v1/guilds.js";
+import observationRecords from "./v1/observation-records.js";
 import root from "./v1/root.js";
 import submit from "./v1/submit.js";
 import users from "./v1/users.js";
 
 export default (app: App) =>
     app.group("/v1", (app) =>
-        app.use(root).use(auth).use(users).use(guilds).use(attributes).use(characters).use(events).use(submit).use(banshares).use(docs).use(auditLogs),
+        app
+            .use(root)
+            .use(auth)
+            .use(users)
+            .use(guilds)
+            .use(attributes)
+            .use(characters)
+            .use(events)
+            .use(submit)
+            .use(banshares)
+            .use(docs)
+            .use(auditLogs)
+            .use(observationRecords),
     );

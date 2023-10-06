@@ -58,7 +58,7 @@ export default (app: App) =>
 
                     await data.getCharacter(body.mascot);
 
-                    const code = await validateInvite(bearer!, body.invite, id);
+                    const code = await validateInvite<false>(bearer!, body.invite, id);
 
                     const createData = {
                         id,
@@ -115,7 +115,7 @@ export default (app: App) =>
                         $set.mascot = body.mascot;
                     }
 
-                    if (body.invite) $set.invite = await validateInvite(bearer!, body.invite, id);
+                    if (body.invite) $set.invite = await validateInvite<false>(bearer!, body.invite, id);
                     if (body.owner) $set.owner = body.owner;
 
                     if (body.advisor !== undefined)
