@@ -134,3 +134,5 @@ export type ObservationRecord = {
     status: string;
     notes: string;
 };
+
+export type ElectionHistoryRecord = { id: string; status: string; rerunning: boolean };

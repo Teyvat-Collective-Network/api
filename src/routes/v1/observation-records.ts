@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import audit, { AuditLogAction } from "../../lib/audit.js";
+import audit, { AuditLogAction, headers } from "../../lib/audit.js";
 import { hasScope, isCouncil, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import db from "../../lib/db.js";
@@ -99,6 +99,7 @@ export default (app: App) =>
                             Update an observation record. Observer-only.
                         `),
                     },
+                    headers: headers(),
                     params: t.Object({
                         uuid: t.Numeric({ description: "A unique auto-incrementing ID for observation records." }),
                     }),

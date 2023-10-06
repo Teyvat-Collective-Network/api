@@ -5,6 +5,7 @@ import auth from "./v1/auth.js";
 import banshares from "./v1/banshares.js";
 import characters from "./v1/characters.js";
 import docs from "./v1/docs.js";
+import electionHistory from "./v1/election-history.js";
 import events from "./v1/events.js";
 import guilds from "./v1/guilds.js";
 import observationRecords from "./v1/observation-records.js";
@@ -26,5 +27,6 @@ export default (app: App) =>
             .use(banshares)
             .use(docs)
             .use(auditLogs)
-            .use(observationRecords),
+            .use(observationRecords)
+            .use(electionHistory),
     );
