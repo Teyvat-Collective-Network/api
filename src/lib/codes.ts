@@ -25,6 +25,8 @@ enum codes {
     MISSING_OBSERVATION_RECORD,
     MISSING_ELECTION_WAVE,
     MISSING_ELECTION_USER,
+    MISSING_POLL,
+    MISSING_VOTE,
 }
 
 export default codes;

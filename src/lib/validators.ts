@@ -1,6 +1,8 @@
 import bot from "./bot.js";
 import codes from "./codes.js";
+import data from "./data.js";
 import { APIError } from "./errors.js";
+import { Poll } from "./types.js";
 
 type Invite = { code: string; guild: { id: string; name: string }; vanity: boolean; target: boolean };
 
@@ -14,4 +16,17 @@ export async function validateInvite<T extends boolean>(token: string, raw: stri
     if (invite.target) throw new APIError(400, codes.INVALID_INVITE, "Invites must point to the guild directly and not to an activity.");
 
     return (full ? invite : invite.code) as any;
+}
+
+export async function validatePoll(poll: Poll) {
+    if (poll.dm && poll.duration < 24)
+        throw new APIError(400, codes.INVALID_BODY, "DM reminders can only be enabled if more than 24 hours are left on the poll.");
+
+    if (poll.mode === "selection") {
+        if (poll.min > poll.max) throw new APIError(400, codes.INVALID_BODY, "Minimum options must be no greater than maximum options.");
+        if (poll.max > poll.options.length) throw new APIError(400, codes.INVALID_BODY, "Maximum options must be no greater than the number of options.");
+    } else if (poll.mode === "election") {
+        const council = new Set((await data.getGuilds()).flatMap((x) => [x.owner, x.advisor]).filter((x) => x));
+        if (poll.candidates.some((x) => !council.has(x))) throw new APIError(400, codes.INVALID_BODY, "Only council members may become observers.");
+    }
 }

@@ -5,7 +5,7 @@ export default function (fn: (...args: any[]) => any, length: number) {
         try {
             await fn();
         } catch (error) {
-            logger.error(error, `[a5943913-2543-480e-ae82-f29571010c94] Error running cycle:`);
+            logger.error(error, "a866a6ea-7cc0-4476-a6fc-62e835534b31");
         }
     }
 

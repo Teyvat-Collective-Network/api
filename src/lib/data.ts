@@ -34,7 +34,10 @@ function formatGuild(guild: Guild): Guild {
 }
 
 export default {
-    async getUser(id: string): Promise<User> {
+    async getUser(id: string, internal?: boolean): Promise<User> {
+        if (id === "111111111111111111" && internal)
+            return { id, observer: true, owner: false, advisor: false, voter: false, council: true, guilds: {}, observerSince: 0, roles: [], staff: false };
+
         const entry = (await db.users.findOne({ id })) as unknown as User;
 
         const user = baseUser(id, entry?.observer ?? false, entry?.roles ?? [], entry?.observerSince);

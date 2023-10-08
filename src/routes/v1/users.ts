@@ -15,7 +15,7 @@ export default (app: App) =>
         app
             .get(
                 "/",
-                async ({ query: { observers } }) => {
+                async ({ query: { observers, council, voters } }) => {
                     const filter: any = {};
 
                     if (observers === "true") filter.observer = true;
@@ -23,6 +23,8 @@ export default (app: App) =>
                     let users = await data.getUsers(filter);
 
                     if (observers === "true") users = users.filter((x) => x.observer);
+                    if (council === "true") users = users.filter((x) => x.council);
+                    if (voters === "true") users = users.filter((x) => x.voter);
 
                     return users;
                 },
@@ -39,6 +41,8 @@ export default (app: App) =>
                     },
                     query: t.Object({
                         observers: t.Optional(t.String({ description: "If true, only return observers." })),
+                        council: t.Optional(t.String({ description: "If true, only return council members." })),
+                        voters: t.Optional(t.String({ description: "If true, only return designated voters." })),
                     }),
                     response: t.Array(schemas.user),
                 },

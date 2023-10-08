@@ -66,7 +66,7 @@ export const app = new Elysia()
         const entry = await db.invalidations.findOne({ id: payload.id });
         if (entry && payload.created <= entry.time) return {};
 
-        return { user: { ...payload, ...(await data.getUser(payload.id)), token: bearer }, internal: !!payload.internal };
+        return { user: { ...payload, ...(await data.getUser(payload.id, !!payload.internal)), token: bearer }, internal: !!payload.internal };
     })
     .derive(async ({ headers }) => {
         const reason = headers["x-audit-log-reason"]?.trim() || null;
@@ -80,7 +80,7 @@ export const app = new Elysia()
     .onAfterHandle(({ response }) => stripMongoIds(response))
     .error({ API_ERROR: APIError })
     .onError(({ code, error, path, request, set }) => {
-        if (code !== "NOT_FOUND") logger.error({ location: "cf70b286-db7a-4d59-b34c-b56d90608b6d", error }, `Error in ${request.method} ${path}`);
+        if (code !== "NOT_FOUND") logger.error(error, `cf70b286-db7a-4d59-b34c-b56d90608b6d Error in ${request.method} ${path}`);
 
         switch (code) {
             case "API_ERROR":
@@ -91,7 +91,7 @@ export const app = new Elysia()
                 set.status = 500;
                 return { code: codes.INTERNAL_SERVER_ERROR, message: `Internal server error: ${error.message}` };
             case "NOT_FOUND":
-                logger.error({ location: "1edeba58-7b33-4faf-9565-a3e50a92c3af" }, `[404] ${request.method} ${path}`);
+                logger.error(`1edeba58-7b33-4faf-9565-a3e50a92c3af [404] ${request.method} ${path}`);
                 set.status = 404;
                 return { code: codes.NOT_FOUND, message: "Route not found." };
             case "PARSE":

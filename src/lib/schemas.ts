@@ -1,5 +1,9 @@
 import { t } from "elysia";
 
+function requireIf(required: boolean, item: any) {
+    return required ? item : t.Optional(item);
+}
+
 const snowflake = (description?: string) =>
     t.String({
         pattern: "^[1-9][0-9]{16,19}$",
@@ -78,6 +82,75 @@ const objects = {
         ...tcnDocEmbedData,
     },
 };
+
+const pollData = (response: boolean) =>
+    t.Intersect([
+        t.Object({
+            ...(response
+                ? {
+                      id: t.Integer({ minimum: 1, description: "The ID of the poll" }),
+                      message: snowflake("The ID of the message of the poll (may be out of date)."),
+                      close: t.Integer({ description: "The millisecond timestamp of when the poll is scheduled to close." }),
+                      closed: t.Boolean({
+                          description:
+                              "If true, this poll has been closed. This may be false even if the close field is in the past, indicating the poll still needs to be processed.",
+                      }),
+                  }
+                : {}),
+            duration: t.Number({ minimum: 0, description: "The duration of the poll in hours at its last edit (the close field contains its real end time)." }),
+            dm: t.Boolean({ description: "Whether or not to trigger a DM reminder 24 hours before the poll closes." }),
+            live: t.Boolean({ description: "Whether or not to display votes in real-time." }),
+            restricted: t.Boolean({ description: "If true, only designated voters can vote." }),
+            quorum: t.Integer({ minimum: 0, maximum: 100, description: "The required voter turnout." }),
+        }),
+        t.Union([
+            t.Object({
+                mode: t.Enum({ mode: "proposal" }),
+                question: t.String({ minLength: 1, maxLength: 256, description: "The question to display." }),
+            }),
+            t.Object({
+                mode: t.Enum({ mode: "induction" }),
+                preinduct: t.Boolean({ description: "If true, the mascot is not yet official." }),
+                server: t.String({ minLength: 1, maxLength: 64, description: "The display name of the server." }),
+            }),
+            t.Object({
+                mode: t.Enum({ mode: "election" }),
+                wave: t.Integer({ minimum: 1, description: "The wave of the election." }),
+                seats: t.Integer({ minimum: 1, description: "The number of seats open for this election." }),
+                candidates: t.Array(snowflake(), { minItems: 1, maxItems: 20, description: "The array of candidates' user IDs." }),
+            }),
+            t.Object({
+                mode: t.Enum({ mode: "selection" }),
+                question: t.String({ minLength: 1, maxLength: 256, description: "The question to display." }),
+                min: t.Integer({ minimum: 0, description: "The minimum number of options a voter must select." }),
+                max: t.Integer({ minimum: 1, description: "The maximum number of options a voter may select." }),
+                options: t.Array(t.String({ minLength: 1, maxLength: 100 }), {
+                    minItems: 2,
+                    maxItems: 10,
+                    description: "The options available for selection.",
+                }),
+            }),
+        ]),
+    ]);
+
+const voteData = (response: boolean) =>
+    t.Object({
+        ...(response
+            ? {
+                  poll: t.Integer({ minimum: 1, description: "The ID of the poll." }),
+                  user: snowflake("The ID of the user to whom this ballot belongs."),
+                  mode: t.String({ description: "The mode of the poll" }),
+              }
+            : {}),
+        abstain: requireIf(response, t.Boolean({ description: "If true, this is an abstain ballot and other values should be ignored." })),
+        yes: requireIf(response, t.Boolean({ description: "For proposal votes, whether the vote is yes or not." })),
+        verdict: requireIf(response, t.String({ description: "For induction votes, the verdict for which the user has voted." })),
+        candidates: requireIf(
+            response,
+            t.Object({}, { additionalProperties: t.Integer(), description: "For elections, a map of candidate user IDs to ranks" }),
+        ),
+        selected: requireIf(response, t.Array(t.String(), { description: "For selection votes, the list of options the user has selected." })),
+    });
 
 export default {
     snowflake,
@@ -249,4 +322,8 @@ export default {
         status: t.String({ description: "The current status of the server." }),
         notes: t.String({ maxLength: 1024, description: "Any notes regarding the server / that specific observation." }),
     }),
+    poll: pollData(false),
+    pollResponse: pollData(true),
+    pollVote: voteData(false),
+    pollVoteResponse: voteData(true),
 };

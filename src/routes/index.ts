@@ -9,6 +9,7 @@ import electionHistory from "./v1/election-history.js";
 import events from "./v1/events.js";
 import guilds from "./v1/guilds.js";
 import observationRecords from "./v1/observation-records.js";
+import polls from "./v1/polls.js";
 import root from "./v1/root.js";
 import submit from "./v1/submit.js";
 import users from "./v1/users.js";
@@ -28,5 +29,6 @@ export default (app: App) =>
             .use(docs)
             .use(auditLogs)
             .use(observationRecords)
-            .use(electionHistory),
+            .use(electionHistory)
+            .use(polls),
     );
