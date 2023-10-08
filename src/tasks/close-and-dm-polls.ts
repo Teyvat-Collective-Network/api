@@ -27,8 +27,7 @@ async function run() {
 
                 const waiting: string[] = (await db.guilds.find().toArray())
                     .flatMap((x: any) => (poll.restricted ? [x.delegated ? x.advisor : x.owner] : [x.owner, x.advisor]))
-                    .filter((x) => !voted.has(x))
-                    .filter((x) => x === "251082987360223233");
+                    .filter((x) => !voted.has(x));
 
                 await bot(null, `POST /poll-remind/${poll.id}`, { message: poll.message, waiting });
             } catch (error) {
