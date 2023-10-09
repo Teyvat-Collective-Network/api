@@ -326,4 +326,22 @@ export default {
     pollResponse: pollData(true),
     pollVote: voteData(false),
     pollVoteResponse: voteData(true),
+    rolesync: t.Object({
+        roleToStaff: t.Array(snowflake(), { description: "The array of Discord roles whose members will be made staff." }),
+        staffToRole: t.Array(snowflake(), { description: "The array of Discord roles which staff will be given." }),
+        roleToApi: t.Object(
+            {},
+            {
+                additionalProperties: t.Array(id()),
+                description: "A map from Discord roles to the array of API roles which members with that Discord role will be given.",
+            },
+        ),
+        apiToRole: t.Object(
+            {},
+            {
+                additionalProperties: t.Array(snowflake()),
+                description: "A map from API roles to the array of Discord roles which members with that API role will be given.",
+            },
+        ),
+    }),
 };

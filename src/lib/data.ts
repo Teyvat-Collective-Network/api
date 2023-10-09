@@ -35,7 +35,7 @@ function formatGuild(guild: Guild): Guild {
 
 export default {
     async getUser(id: string, internal?: boolean): Promise<User> {
-        if (id === "111111111111111111" && internal)
+        if (id === "1".repeat(18) && internal)
             return { id, observer: true, owner: false, advisor: false, voter: false, council: true, guilds: {}, observerSince: 0, roles: [], staff: false };
 
         const entry = (await db.users.findOne({ id })) as unknown as User;
@@ -74,7 +74,7 @@ export default {
         for (const entry of await db.users.find(filter).toArray()) users[entry.id] = baseUser(entry.id, entry.observer, entry.roles, entry.observerSince);
 
         for (const guild of await this.getGuilds()) {
-            const gu = (id: string) => [(users[id] ??= baseUser(id)), (users[id].guilds[guild.id] ??= baseUserGuild())];
+            const gu = (id: string): [User, UserGuild] => [(users[id] ??= baseUser(id)), (users[id].guilds[guild.id] ??= baseUserGuild())];
 
             for (const key of ["owner", "advisor", "voter"] as const)
                 if (guild[key]) {
@@ -85,9 +85,8 @@ export default {
             for (const [id, val] of Object.entries(guild.users)) {
                 const [x, y] = gu(id);
 
-                if (val.staff) {
-                    x.staff = y.staff = true;
-                }
+                if (val.staff) x.staff = y.staff = true;
+                if (val.roles.length > 0) y.roles = val.roles;
             }
         }
 

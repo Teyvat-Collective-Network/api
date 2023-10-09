@@ -5,8 +5,9 @@ import bot from "../../lib/bot.js";
 import { hasScope, isObserver, isOwner, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
-import db from "../../lib/db.js";
+import db, { withSession } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
+import rolesync from "../../lib/rolesync.js";
 import schemas from "../../lib/schemas.js";
 import { trim } from "../../lib/utils.js";
 
@@ -96,6 +97,7 @@ export default (app: App) =>
 
                     await db.users.updateOne({ id }, { $set }, { upsert: true });
                     audit(user, body.observer ? AuditLogAction.USERS_PROMOTE : AuditLogAction.USERS_DEMOTE, { id }, reason);
+                    rolesync({ user: id });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -145,6 +147,7 @@ export default (app: App) =>
                 async ({ params: { id, role }, reason, user }) => {
                     await db.users.updateOne({ id }, { $addToSet: { roles: role } }, { upsert: true });
                     audit(user, AuditLogAction.USERS_ROLES_ADD, { id, role }, reason);
+                    rolesync({ user: id });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -168,6 +171,7 @@ export default (app: App) =>
                 async ({ params: { id, role }, reason, user }) => {
                     await db.users.updateOne({ id }, { $pull: { roles: role } }, { upsert: true });
                     audit(user, AuditLogAction.USERS_ROLES_REMOVE, { id, role }, reason);
+                    rolesync({ user: id });
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -186,11 +190,50 @@ export default (app: App) =>
                     params: t.Object({ id: schemas.snowflake("The user's Discord ID."), role: schemas.id("The role to remove.") }),
                 },
             )
+            .patch(
+                "/:id/guild-roles/:guild",
+                async ({ body: { add, remove }, params: { id, guild }, reason, user }) => {
+                    await data.getGuild(guild);
+
+                    await withSession(async () => {
+                        if (add) await db.guilds.updateOne({ id: guild }, { $addToSet: { [`users.${id}.roles`]: { $each: add } } });
+                        if (remove) await db.guilds.updateOne({ id: guild }, { $pull: { [`users.${id}.roles`]: { $in: remove } } });
+                    });
+
+                    audit(user, AuditLogAction.USERS_ROLES_SET, { id, add, remove }, reason);
+                    rolesync({ guild, user: id });
+                },
+                {
+                    beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
+                    body: t.Object({
+                        add: t.Optional(t.Array(schemas.id(), { description: "An array of roles to add." })),
+                        remove: t.Optional(t.Array(schemas.id(), { description: "An array of roles to remove." })),
+                    }),
+                    detail: {
+                        tags: ["V1"],
+                        summary: "Set a user's guild roles.",
+                        description: trim(`
+                            \`\`\`
+                            Scope: users/write
+                            \`\`\`
+
+                            Update a user, setting multiple guild roles at once. Observer/owner-only.
+                    `),
+                    },
+                    headers: headers(),
+                    params: t.Object({
+                        id: schemas.snowflake("The user's Discord ID."),
+                        guild: schemas.snowflake("The guild's Discord ID."),
+                    }),
+                },
+            )
             .put(
                 "/:id/roles/:role/:guild",
                 async ({ params: { id, role, guild }, reason, user }) => {
+                    await data.getGuild(guild);
                     await db.guilds.updateOne({ id: guild }, { $addToSet: { [`users.${id}.roles`]: role } });
                     audit(user, AuditLogAction.USERS_ROLES_ADD, { id, role, guild }, reason);
+                    rolesync({ guild, user: id });
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -216,8 +259,10 @@ export default (app: App) =>
             .delete(
                 "/:id/roles/:role/:guild",
                 async ({ params: { id, role, guild }, reason, user }) => {
+                    await data.getGuild(guild);
                     await db.guilds.updateOne({ id: guild }, { $pull: { [`users.${id}.roles`]: role } });
                     audit(user, AuditLogAction.USERS_ROLES_REMOVE, { id, role, guild }, reason);
+                    rolesync({ guild, user: id });
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -245,6 +290,7 @@ export default (app: App) =>
                 async ({ body: { staff }, params: { id, guild }, reason, user }) => {
                     await db.guilds.updateOne({ id: guild }, { $set: { [`users.${id}.staff`]: staff } });
                     audit(user, staff ? AuditLogAction.USERS_STAFF_ADD : AuditLogAction.USERS_STAFF_REMOVE, { id, guild }, reason);
+                    rolesync({ guild, user: id });
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],

@@ -13,6 +13,7 @@ import polls from "./v1/polls.js";
 import root from "./v1/root.js";
 import submit from "./v1/submit.js";
 import users from "./v1/users.js";
+import websockets from "./v1/websockets.js";
 
 export default (app: App) =>
     app.group("/v1", (app) =>
@@ -30,5 +31,6 @@ export default (app: App) =>
             .use(auditLogs)
             .use(observationRecords)
             .use(electionHistory)
-            .use(polls),
+            .use(polls)
+            .use(websockets),
     );

@@ -13,6 +13,8 @@ export function ratelimitCheck(key: string, time: number, threshold: number) {
     const duration = unparseDuration(time, DurationStyle.Blank);
 
     return async function ({ user }: any) {
+        if (user.id === "1".repeat(18)) return;
+
         if ((await db.ratelimit.countDocuments({ key, user: user.id, time: { $gt: Date.now() - time } })) >= threshold)
             throw new APIError(429, codes.RATELIMIT, `You have been ratelimited (max: ${threshold} request${threshold === 1 ? "" : "s"} per ${duration}).`);
     };
@@ -20,6 +22,8 @@ export function ratelimitCheck(key: string, time: number, threshold: number) {
 
 export function ratelimitApply(key: string) {
     return async function ({ response, user }: any) {
+        if (user.id === "1".repeat(18)) return;
+
         if (response instanceof Response && !response.ok) return;
         await db.ratelimit.insertOne({ key, user: user.id, time: Date.now() });
     };

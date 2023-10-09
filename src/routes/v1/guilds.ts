@@ -1,12 +1,15 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
 import audit, { AuditLogAction, headers } from "../../lib/audit.js";
-import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
+import bot from "../../lib/bot.js";
+import { hasScope, isObserver, isOwner, isSignedIn, ratelimitApply, ratelimitCheck } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import data from "../../lib/data.js";
-import db, { withSession } from "../../lib/db.js";
+import db from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
+import rolesync from "../../lib/rolesync.js";
 import schemas from "../../lib/schemas.js";
+import { Rolesync } from "../../lib/types.js";
 import { changes, trim } from "../../lib/utils.js";
 import { validateInvite } from "../../lib/validators.js";
 
@@ -178,10 +181,7 @@ export default (app: App) =>
                 async ({ params: { id }, reason, user }) => {
                     const guild = await data.getGuild(id);
 
-                    await withSession(async () => {
-                        await db.guilds.deleteOne({ id });
-                        await db.banshare_settings.deleteOne({ guild: id });
-                    });
+                    await db.guilds.deleteOne({ id });
 
                     audit(user, AuditLogAction.GUILDS_DELETE, guild, reason);
                 },
@@ -200,6 +200,138 @@ export default (app: App) =>
                     },
                     headers: headers(),
                     params: t.Object({ id: schemas.snowflake("The guild's Discord ID.") }),
+                },
+            )
+            .get(
+                "/all-rolesync",
+                async () => {
+                    return (await db.rolesync.find().toArray()) as unknown[] as Rolesync[];
+                },
+                {
+                    beforeHandle: [isSignedIn, isObserver, hasScope("rolesync/read")],
+                    detail: {
+                        tags: ["V1"],
+                        summary: "Get all rolesync configurations.",
+                        description: trim(`
+                            \`\`\`
+                            Scope: rolesync/read
+                            \`\`\`
+
+                            Get all rolesync configurations. Observer-only.
+                        `),
+                    },
+                    response: t.Array(schemas.rolesync),
+                },
+            )
+            .get(
+                "/:id/rolesync",
+                async ({ params: { id } }) => {
+                    const doc = (await db.rolesync.findOne({ guild: id })) as unknown as Rolesync;
+                    if (doc && "guild" in doc) delete doc.guild;
+
+                    return doc ?? { roleToStaff: [], staffToRole: [], roleToApi: {}, apiToRole: {} };
+                },
+                {
+                    beforeHandle: [isSignedIn, ({ params: { id }, user }) => isOwner(id, user!), hasScope("rolesync/read")],
+                    detail: {
+                        tags: ["V1"],
+                        summary: "Get the rolesync configuration for a guild.",
+                        description: trim(`
+                            \`\`\`
+                            Scope: rolesync/read
+                            \`\`\`
+
+                            Get the rolesync configuration for a guild. Owner-only.
+                        `),
+                    },
+                    params: t.Object({
+                        id: schemas.snowflake("The ID of the guild."),
+                    }),
+                    response: schemas.rolesync,
+                },
+            )
+            .put(
+                "/:id/rolesync",
+                async ({ bearer, body, params: { id }, user }) => {
+                    await data.getGuild(id);
+
+                    const roles: Record<string, { manageable: boolean }> = await bot(bearer!, `GET /guilds/${id}/roles`);
+                    const ids = [
+                        ...new Set([
+                            ...body.roleToStaff,
+                            ...body.staffToRole,
+                            ...Object.keys(body.roleToApi),
+                            ...Object.values((body as Rolesync).apiToRole).flat(),
+                        ]),
+                    ];
+
+                    const invalid = ids.filter((x) => !roles[x]);
+
+                    if (invalid.length > 0)
+                        throw new APIError(
+                            400,
+                            codes.INVALID_BODY,
+                            `The following role ID${invalid.length === 1 ? " is" : "s are"} invalid for this guild: ${invalid.join(", ")}`,
+                        );
+
+                    const unmanageable = [...new Set([...body.staffToRole, ...Object.values((body as Rolesync).apiToRole).flat()])].filter(
+                        (x) => !roles[x].manageable,
+                    );
+
+                    if (unmanageable.length > 0)
+                        throw new APIError(
+                            400,
+                            codes.INVALID_BODY,
+                            `The following role ID${
+                                unmanageable.length === 1 ? " is" : "s are"
+                            } valid in this guild but cannot be managed and therefore cannot be staff-to-role or api-to-role entries: ${unmanageable.join(
+                                ", ",
+                            )}`,
+                        );
+
+                    body.roleToStaff = [...new Set(body.roleToStaff)].sort();
+                    body.staffToRole = [...new Set(body.staffToRole)].sort();
+
+                    for (const key of ["roleToApi", "apiToRole"] as const)
+                        body[key] = Object.fromEntries(
+                            Object.entries((body as Rolesync)[key])
+                                .sort(([x], [y]) => x.localeCompare(y))
+                                .map(([x, y]) => [x, [...new Set(y)].sort()]),
+                        );
+
+                    const doc = await db.rolesync.findOneAndReplace({ guild: id }, { guild: id, ...body }, { upsert: true });
+                    rolesync({ guild: id });
+
+                    if (!user!.guilds[id]?.owner)
+                        audit(user, AuditLogAction.ROLESYNC_EDIT, {
+                            id,
+                            before: doc ?? { roleToStaff: [], staffToRole: [], roleToApi: {}, apiToRole: {} },
+                            after: body,
+                        });
+                },
+                {
+                    beforeHandle: [
+                        isSignedIn,
+                        ({ params: { id }, user }) => isOwner(id, user!),
+                        hasScope("rolesync/write"),
+                        ratelimitCheck("rolesync/write", 30000, 3),
+                    ],
+                    afterHandle: [ratelimitApply("rolesync/write")],
+                    body: schemas.rolesync,
+                    detail: {
+                        tags: ["V1"],
+                        summary: "Set the rolesync configuration for a guild.",
+                        description: trim(`
+                            \`\`\`
+                            Scope: rolesync/write
+                            \`\`\`
+
+                            Set the rolesync configuration for a guild. Owner-only.
+                        `),
+                    },
+                    params: t.Object({
+                        id: schemas.snowflake("The ID of the guild."),
+                    }),
                 },
             ),
     );

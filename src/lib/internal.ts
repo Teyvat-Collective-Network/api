@@ -24,4 +24,13 @@ export default new Elysia()
             }),
         },
     )
+    .post(
+        "/push",
+        async ({ body }) => {
+            console.log(body);
+        },
+        {
+            body: t.Array(t.Array(t.Any())),
+        },
+    )
     .listen(Bun.env.INTERNAL_PORT || 4001);
