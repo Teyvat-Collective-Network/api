@@ -1,6 +1,7 @@
 import jwt from "@elysiajs/jwt";
 import Elysia, { t } from "elysia";
 import schemas from "./schemas.js";
+import { broadcast } from "./websockets.js";
 
 export default new Elysia()
     .use(jwt({ secret: Bun.env.JWT_SECRET! }))
@@ -26,11 +27,14 @@ export default new Elysia()
     )
     .post(
         "/push",
-        async ({ body }) => {
-            console.log(body);
+        async ({ body: { topic, messages } }) => {
+            await broadcast(topic, ...messages);
         },
         {
-            body: t.Array(t.Array(t.Any())),
+            body: t.Object({
+                topic: t.String(),
+                messages: t.Array(t.Array(t.Any())),
+            }),
         },
     )
     .listen(Bun.env.INTERNAL_PORT || 4001);

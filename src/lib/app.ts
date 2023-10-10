@@ -10,6 +10,7 @@ import db from "./db.js";
 import { APIError } from "./errors.js";
 import logger from "./logger.js";
 import { stripMongoIds, trim } from "./utils.js";
+import { broadcast } from "./websockets.js";
 
 export const app = new Elysia()
     .use(cors())
@@ -74,9 +75,16 @@ export const app = new Elysia()
         return { reason };
     })
     .derive(() => ({ log: logger }))
-    .onBeforeHandle(({ internal, log, path, request, user }) =>
-        log.info({ location: "dd024f32-1c79-47bb-a7ca-e9858f247c80" }, `${request.method} ${path} [${user?.id ?? "anon"}]${internal ? " [internal]" : ""}`),
-    )
+    .onBeforeHandle(({ bearer, body, internal, log, path, request, user }) => {
+        const token = bearer?.split(".")[1];
+
+        log.info(
+            { location: "dd024f32-1c79-47bb-a7ca-e9858f247c80", token },
+            `${request.method} ${path} [${user?.id ?? "anon"}]${internal ? " [internal]" : ""}`,
+        );
+
+        broadcast("api", ["request", request.method, path, body, user?.id, internal, token]);
+    })
     .onAfterHandle(({ response }) => stripMongoIds(response))
     .error({ API_ERROR: APIError })
     .onError(({ code, error, path, request, set }) => {

@@ -4,7 +4,10 @@ import "./lib/internal.js";
 import logger from "./lib/logger.js";
 import setup from "./lib/setup.js";
 import "./lib/tasks.js";
+import "./lib/websockets.js";
 import routes from "./routes/index.js";
+
+process.on("uncaughtException", (error) => logger.error(error, "48542d76-39a7-4767-bed1-3131962031a0"));
 
 await connect();
 
