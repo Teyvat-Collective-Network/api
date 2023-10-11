@@ -336,12 +336,13 @@ export default {
                 description: "A map from Discord roles to the array of API roles which members with that Discord role will be given.",
             },
         ),
-        apiToRole: t.Object(
-            {},
-            {
-                additionalProperties: t.Array(snowflake()),
-                description: "A map from API roles to the array of Discord roles which members with that API role will be given.",
-            },
+        apiToRole: t.Array(
+            t.Object({
+                type: t.String({ description: "`position` for observer/owner/advisor/voter/council/staff, `role` for other roles." }),
+                value: id("For positions, `observer` or `owner`, etc. For roles, the role."),
+                guild: t.Optional(snowflake("The ID of the guild in which to look for this condition.")),
+                roles: t.Array(snowflake(), { description: "The array of roles to assign for this condition." }),
+            }),
         ),
     }),
 };

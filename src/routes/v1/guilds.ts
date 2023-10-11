@@ -12,7 +12,6 @@ import schemas from "../../lib/schemas.js";
 import { Rolesync } from "../../lib/types.js";
 import { changes, trim } from "../../lib/utils.js";
 import { validateInvite } from "../../lib/validators.js";
-
 export default (app: App) =>
     app.group("/guilds", (app) =>
         app
@@ -141,6 +140,8 @@ export default (app: App) =>
                             { $set: { "data.invite": body.invite, "data.name": body.name && body.name !== doc.name ? body.name : undefined } },
                         );
 
+                    if ("owner" in $set || "advisor" in $set || "advisor" in $unset || "delegated" in $set) rolesync({ guild: id });
+
                     const changelist = changes(doc, body);
                     if (changelist.delegated)
                         changelist.voter = [
@@ -232,7 +233,7 @@ export default (app: App) =>
                     return doc ?? { roleToStaff: [], staffToRole: [], roleToApi: {}, apiToRole: {} };
                 },
                 {
-                    beforeHandle: [isSignedIn, ({ params: { id }, user }) => isOwner(id, user!), hasScope("rolesync/read")],
+                    beforeHandle: [isSignedIn, ({ params: { id }, user }) => isOwner(id, user!, undefined, true), hasScope("rolesync/read")],
                     detail: {
                         tags: ["V1"],
                         summary: "Get the rolesync configuration for a guild.",
@@ -253,7 +254,24 @@ export default (app: App) =>
             .put(
                 "/:id/rolesync",
                 async ({ bearer, body, params: { id }, user }) => {
-                    await data.getGuild(id);
+                    if (id !== Bun.env.HQ && id !== Bun.env.HUB) await data.getGuild(id);
+                    else if (body.roleToStaff.length + body.staffToRole.length > 0)
+                        throw new APIError(400, codes.INVALID_BODY, "For HQ/Hub, the role-to-staff and staff-to-role synchronizations are not allowed.");
+                    else if (body.apiToRole.some((x) => x.type !== "position" && x.type !== "role"))
+                        throw new APIError(400, codes.INVALID_BODY, "API-to-role condition type must be position or role.");
+                    else if (
+                        body.apiToRole.some((x) => x.type === "position" && !["observer", "owner", "advisor", "voter", "council", "staff"].includes(x.value))
+                    )
+                        throw new APIError(
+                            400,
+                            codes.INVALID_BODY,
+                            "Position API-to-role condition values must be observer, owner, advisor, voter, council, or staff.",
+                        );
+
+                    const apiConditionKeys = body.apiToRole.map((x) => `${x.type}/${x.value}/${x.guild}`);
+
+                    if (apiConditionKeys.length > new Set(apiConditionKeys).size)
+                        throw new APIError(400, codes.INVALID_BODY, "One or more API conditions are duplicate.");
 
                     const roles: Record<string, { manageable: boolean }> = await bot(bearer!, `GET /guilds/${id}/roles`);
                     const ids = [
@@ -261,7 +279,7 @@ export default (app: App) =>
                             ...body.roleToStaff,
                             ...body.staffToRole,
                             ...Object.keys(body.roleToApi),
-                            ...Object.values((body as Rolesync).apiToRole).flat(),
+                            ...Object.values((body as Rolesync).apiToRole).flatMap((x) => x.roles),
                         ]),
                     ];
 
@@ -274,7 +292,7 @@ export default (app: App) =>
                             `The following role ID${invalid.length === 1 ? " is" : "s are"} invalid for this guild: ${invalid.join(", ")}`,
                         );
 
-                    const unmanageable = [...new Set([...body.staffToRole, ...Object.values((body as Rolesync).apiToRole).flat()])].filter(
+                    const unmanageable = [...new Set([...body.staffToRole, ...Object.values((body as Rolesync).apiToRole).flatMap((x) => x.roles)])].filter(
                         (x) => !roles[x].manageable,
                     );
 
@@ -292,27 +310,37 @@ export default (app: App) =>
                     body.roleToStaff = [...new Set(body.roleToStaff)].sort();
                     body.staffToRole = [...new Set(body.staffToRole)].sort();
 
-                    for (const key of ["roleToApi", "apiToRole"] as const)
-                        body[key] = Object.fromEntries(
-                            Object.entries((body as Rolesync)[key])
-                                .sort(([x], [y]) => x.localeCompare(y))
-                                .map(([x, y]) => [x, [...new Set(y)].sort()]),
-                        );
+                    body.roleToApi = Object.fromEntries(
+                        Object.entries((body as Rolesync).roleToApi)
+                            .sort(([x], [y]) => x.localeCompare(y))
+                            .map(([x, y]) => [x, [...new Set(y)].sort()]),
+                    );
+
+                    body.apiToRole = body.apiToRole
+                        .map(({ roles, ...rest }) => ({ roles: roles.sort(), ...rest }))
+                        .sort((x, y) => x.type.localeCompare(y.type) || x.value.localeCompare(y.value) || (x.guild ?? "").localeCompare(y.guild ?? ""));
 
                     const doc = await db.rolesync.findOneAndReplace({ guild: id }, { guild: id, ...body }, { upsert: true });
+
+                    if (
+                        doc &&
+                        (["roleToStaff", "staffToRole", "roleToApi", "apiToRole"] as const).every((x) => JSON.stringify(doc[x]) === JSON.stringify(body[x]))
+                    )
+                        throw new APIError(400, codes.NOT_MODIFIED, "No changes were made.");
+
                     rolesync({ guild: id });
 
                     if (!user!.guilds[id]?.owner)
                         audit(user, AuditLogAction.ROLESYNC_EDIT, {
                             id,
-                            before: doc ?? { roleToStaff: [], staffToRole: [], roleToApi: {}, apiToRole: {} },
+                            before: doc ?? { roleToStaff: [], staffToRole: [], roleToApi: {}, apiToRole: [] },
                             after: body,
                         });
                 },
                 {
                     beforeHandle: [
                         isSignedIn,
-                        ({ params: { id }, user }) => isOwner(id, user!),
+                        ({ params: { id }, user }) => isOwner(id, user!, undefined, true),
                         hasScope("rolesync/write"),
                         ratelimitCheck("rolesync/write", 30000, 3),
                     ],
@@ -326,7 +354,7 @@ export default (app: App) =>
                             Scope: rolesync/write
                             \`\`\`
 
-                            Set the rolesync configuration for a guild. Owner-only.
+                            Set the rolesync configuration for a guild. Owner-only. HQ and Hub are supported and observer-only.
                         `),
                     },
                     params: t.Object({

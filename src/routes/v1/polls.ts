@@ -123,7 +123,7 @@ export default (app: App) =>
 
                     await db.polls.replaceOne({ id }, data);
 
-                    audit(user, AuditLogAction.POLLS_EDIT, { id, changes: changes(doc, body) }, reason);
+                    audit(user, AuditLogAction.POLLS_EDIT, { id, changes: changes(doc, data) }, reason);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("polls/write"), ratelimitCheck("polls/write", 20000, 4)],

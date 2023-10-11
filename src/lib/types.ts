@@ -184,5 +184,5 @@ export type Rolesync = {
     roleToStaff: string[];
     staffToRole: string[];
     roleToApi: Record<string, string[]>;
-    apiToRole: Record<string, string[]>;
+    apiToRole: { type: "position" | "role"; value: string; guild?: string; roles: string[] }[];
 };

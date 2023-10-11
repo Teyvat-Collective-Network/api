@@ -200,7 +200,7 @@ export default (app: App) =>
                         if (remove) await db.guilds.updateOne({ id: guild }, { $pull: { [`users.${id}.roles`]: { $in: remove } } });
                     });
 
-                    audit(user, AuditLogAction.USERS_ROLES_SET, { id, add, remove }, reason);
+                    audit(user, AuditLogAction.USERS_ROLES_SET, { id, guild, add, remove }, reason);
                     rolesync({ guild, user: id });
                 },
                 {

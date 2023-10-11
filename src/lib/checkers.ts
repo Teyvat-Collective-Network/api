@@ -58,10 +58,17 @@ export async function guildExists(id: string) {
     await data.getGuild(id);
 }
 
-export async function isOwner(id: string, user: User, internal?: boolean) {
-    const guild = await data.getGuild(id);
-    if (user.observer) return;
-    if (guild.owner !== user.id)
+export async function isOwner(id: string, user: User, internal?: boolean, allowHqAndHub?: boolean) {
+    let ok = false;
+
+    if (allowHqAndHub && (id === Bun.env.HQ || id === Bun.env.HUB)) {
+        ok = user.observer;
+    } else {
+        const guild = await data.getGuild(id);
+        ok = user.observer || guild.owner === user.id;
+    }
+
+    if (!ok)
         throw new APIError(
             403,
             codes.FORBIDDEN,
