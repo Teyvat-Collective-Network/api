@@ -35,6 +35,7 @@ export enum AuditLogAction {
     EVENTS_DELETE_OTHER = "events/delete/other",
     EVENTS_DELETE_SELF = "events/delete/self",
     EVENTS_EDIT = "events/edit",
+    GLOBAL_FILTER_DELETE = "global/filter/delete",
     GUILDS_CREATE = "guilds/create",
     GUILDS_DELETE = "guilds/delete",
     GUILDS_EDIT = "guilds/edit",

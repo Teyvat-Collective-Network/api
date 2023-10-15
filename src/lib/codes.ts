@@ -27,6 +27,7 @@ enum codes {
     MISSING_ELECTION_USER,
     MISSING_POLL,
     MISSING_VOTE,
+    MISSING_GLOBAL_FILTER_ENTRY,
 }
 
 export default codes;

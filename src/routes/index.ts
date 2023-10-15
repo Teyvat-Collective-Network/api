@@ -7,6 +7,7 @@ import characters from "./v1/characters.js";
 import docs from "./v1/docs.js";
 import electionHistory from "./v1/election-history.js";
 import events from "./v1/events.js";
+import global from "./v1/global.js";
 import guilds from "./v1/guilds.js";
 import observationRecords from "./v1/observation-records.js";
 import polls from "./v1/polls.js";
@@ -17,18 +18,19 @@ import users from "./v1/users.js";
 export default (app: App) =>
     app.group("/v1", (app) =>
         app
-            .use(root)
-            .use(auth)
-            .use(users)
-            .use(guilds)
             .use(attributes)
-            .use(characters)
-            .use(events)
-            .use(submit)
-            .use(banshares)
-            .use(docs)
             .use(auditLogs)
-            .use(observationRecords)
+            .use(auth)
+            .use(banshares)
+            .use(characters)
+            .use(docs)
             .use(electionHistory)
-            .use(polls),
+            .use(events)
+            .use(global)
+            .use(guilds)
+            .use(observationRecords)
+            .use(polls)
+            .use(root)
+            .use(submit)
+            .use(users),
     );
