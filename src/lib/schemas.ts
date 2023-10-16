@@ -345,4 +345,12 @@ export default {
             }),
         ),
     }),
+    autosync: t.Object({
+        guild: snowflake("The ID of the guild."),
+        template: t.String({ description: "The template in TCN/TDE format." }),
+        channel: t.Nullable(snowflake("The ID of the channel to automatically sync.")),
+        webhook: t.Nullable(t.String({ description: "A webhook URL to use instead of the channel ID." })),
+        message: t.Nullable(snowflake("The ID of the message of the current live post.")),
+        repost: t.Boolean({ description: "If true, the previous message will be deleted and a new one posted each time instead of editing the existing one." }),
+    }),
 };

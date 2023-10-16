@@ -186,3 +186,12 @@ export type Rolesync = {
     roleToApi: Record<string, string[]>;
     apiToRole: { type: "position" | "role"; value: string; guild?: string; roles: string[] }[];
 };
+
+export type Autosync = {
+    guild: string;
+    template: string;
+    channel: string | null;
+    webhook: string | null;
+    message: string | null;
+    repost: boolean;
+};

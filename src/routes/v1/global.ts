@@ -1,7 +1,7 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
 import audit, { AuditLogAction, headers } from "../../lib/audit.js";
-import { hasScope, isObserver } from "../../lib/checkers.js";
+import { hasScope, isObserver, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import db, { autoinc } from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
@@ -23,7 +23,7 @@ export default (app: App) =>
                     }[];
                 },
                 {
-                    beforeHandle: [isObserver, hasScope("global/filter/read")],
+                    beforeHandle: [isSignedIn, isObserver, hasScope("global/filter/read")],
                     detail: {
                         tags: ["V1"],
                         summary: "Get the global chat filter.",
@@ -54,7 +54,7 @@ export default (app: App) =>
                     return { id };
                 },
                 {
-                    beforeHandle: [isObserver, hasScope("global/filter/write")],
+                    beforeHandle: [isSignedIn, isObserver, hasScope("global/filter/write")],
                     body: t.String(),
                     detail: {
                         tags: ["V1"],
@@ -79,7 +79,7 @@ export default (app: App) =>
                     if (!doc) throw new APIError(404, codes.MISSING_GLOBAL_FILTER_ENTRY, `No global filter entry exists with ID ${id}.`);
                 },
                 {
-                    beforeHandle: [isObserver, hasScope("global/filter/write")],
+                    beforeHandle: [isSignedIn, isObserver, hasScope("global/filter/write")],
                     body: t.String(),
                     detail: {
                         tags: ["V1"],
@@ -106,7 +106,7 @@ export default (app: App) =>
                     audit(user!, AuditLogAction.GLOBAL_FILTER_DELETE, { id, match: doc.match }, reason);
                 },
                 {
-                    beforeHandle: [isObserver, hasScope("global/filter/write")],
+                    beforeHandle: [isSignedIn, isObserver, hasScope("global/filter/write")],
                     detail: {
                         tags: ["V1"],
                         summary: "Delete a global chat filter entry.F",

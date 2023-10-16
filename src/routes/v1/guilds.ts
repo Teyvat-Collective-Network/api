@@ -76,6 +76,8 @@ export default (app: App) =>
                     await db.guilds.insertOne(createData);
 
                     audit(user, AuditLogAction.GUILDS_CREATE, createData, reason);
+                    rolesync();
+                    bot(bearer!, `POST /autosync`);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -140,8 +142,6 @@ export default (app: App) =>
                             { $set: { "data.invite": body.invite, "data.name": body.name && body.name !== doc.name ? body.name : undefined } },
                         );
 
-                    if ("owner" in $set || "advisor" in $set || "advisor" in $unset || "delegated" in $set) rolesync({ guild: id });
-
                     const changelist = changes(doc, body);
                     if (changelist.delegated)
                         changelist.voter = [
@@ -150,6 +150,8 @@ export default (app: App) =>
                         ];
 
                     audit(user, AuditLogAction.GUILDS_EDIT, { id, name: body.name ?? doc.name, changes: changelist }, reason);
+                    if ("owner" in $set || "advisor" in $set || "advisor" in $unset || "delegated" in $set) rolesync();
+                    bot(bearer!, `POST /autosync`);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -179,12 +181,15 @@ export default (app: App) =>
             )
             .delete(
                 "/:id",
-                async ({ params: { id }, reason, user }) => {
+                async ({ bearer, params: { id }, reason, user }) => {
                     const guild = await data.getGuild(id);
 
                     await db.guilds.deleteOne({ id });
+                    await db.autosync.deleteMany({ guild: id });
 
                     audit(user, AuditLogAction.GUILDS_DELETE, guild, reason);
+                    rolesync();
+                    bot(bearer!, `POST /autosync`);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/delete")],
@@ -230,7 +235,7 @@ export default (app: App) =>
                     const doc = (await db.rolesync.findOne({ guild: id })) as unknown as Rolesync;
                     if (doc && "guild" in doc) delete doc.guild;
 
-                    return doc ?? { roleToStaff: [], staffToRole: [], roleToApi: {}, apiToRole: {} };
+                    return doc ?? { roleToStaff: [], staffToRole: [], roleToApi: {}, apiToRole: [] };
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { id }, user }) => isOwner(id, user!, undefined, true), hasScope("rolesync/read")],

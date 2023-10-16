@@ -1,0 +1,27 @@
+color = 0x2b2d31
+
+[[embed]]
+image = "https://i.imgur.com/sDdOtLU.png"
+
+[[embed]]
+title = "Teyvat Collective Network"
+body = """
+[teyvatcollective.network](https://teyvatcollective.network)
+
+_"In Teyvat, the stars in the sky will always have a place for you."_
+
+A network of high-quality Genshin Impact character-mains style servers that focus on creating fan communities. Within the network, individual and network-wide events are held such as: tournaments, scavenger hunts and other fun events, community nights, giveaways, and patch preview livestreams.
+"""
+image = "https://i.imgur.com/U9Wqlug.png"
+
+[[embed.field]]
+inject = { source = "tcn/partners", group = "element", sort = "a-z", inline = true, pad = true }
+
+[[embed.field]]
+name = "Genshin Wizard"
+value = """The TCN is partnered with [Genshin Wizard](https://genshinwizard.com), a multipurpose Genshin Impact Discord bot with a wide array of features to let you view your in-game stats, flex your builds, view build guides and hundreds of high-quality infographics, and more!"""
+
+[[embed.field]]
+name = "Genshin Impact Tavern"
+value = """The TCN is partnered with [Genshin Impact Tavern](https://discord.gg/genshinimpacttavern), a multifaceted Discord Community Server hosting a custom bot designed to emulate an "RPG-like" experience. This includes the earning of Mora (Server digital currency), a Vision, farming for weapons and upgrades with continuously expanding systems related to each. Mora can be redeemed to make use of several server functions, including redemption for Official Merchandise. Genshin Impact Tavern is also the proud host of the Cat's Tail Gathering TCG Tournament! _Genshin Impact Tavern is an officially endorsed server._"""
+image = "https://i.imgur.com/U9Wqlug.png"

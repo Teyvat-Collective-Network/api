@@ -2,6 +2,7 @@ import { App } from "../lib/app.js";
 import attributes from "./v1/attributes.js";
 import auditLogs from "./v1/audit-logs.js";
 import auth from "./v1/auth.js";
+import autosync from "./v1/autosync.js";
 import banshares from "./v1/banshares.js";
 import characters from "./v1/characters.js";
 import docs from "./v1/docs.js";
@@ -21,6 +22,7 @@ export default (app: App) =>
             .use(attributes)
             .use(auditLogs)
             .use(auth)
+            .use(autosync)
             .use(banshares)
             .use(characters)
             .use(docs)
