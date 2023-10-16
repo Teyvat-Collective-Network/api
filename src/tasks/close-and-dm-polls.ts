@@ -44,8 +44,8 @@ async function run() {
     } catch (error) {
         logger.error(error, "98968038-04bb-4338-a853-6b90886dcbfc");
     } finally {
-        await db.polls.updateMany({ _id: { $in: dmed } }, { $set: { dm: false } }).catch();
-        await db.polls.updateMany({ _id: { $in: closed } }, { $set: { closed: true } }).catch();
+        await db.polls.updateMany({ _id: { $in: dmed } }, { $set: { dm: false } }).catch(() => {});
+        await db.polls.updateMany({ _id: { $in: closed } }, { $set: { closed: true } }).catch(() => {});
 
         setTimeout(run, 10000);
     }
