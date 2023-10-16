@@ -415,5 +415,37 @@ export default (app: App) =>
                         ),
                     }),
                 },
+            )
+            .get(
+                "/records",
+                async () => {
+                    const polls = (await db.polls.find({ closed: true }).toArray()) as unknown[] as PollResponse[];
+                    const pollIds = polls.map(({ id }) => id);
+
+                    return {
+                        polls,
+                        votes: (await db.vote_records.find({ id: { $in: pollIds } }).toArray()) as unknown[] as { id: number; user: string; voted: boolean }[],
+                        ids: (await data.getGuilds()).flatMap((guild) => [guild.owner, guild.advisor!].filter((x) => x)),
+                    };
+                },
+                {
+                    beforeHandle: [isSignedIn, isObserver, hasScope("polls/read")],
+                    detail: {
+                        tags: ["V1"],
+                        summary: "Get the voting records.",
+                        description: trim(`
+                            \`\`\`
+                            Scope: polls/read
+                            \`\`\`
+
+                            Get the voting records (activity check for voter turnout). Observer-only.
+                        `),
+                    },
+                    response: t.Object({
+                        polls: t.Array(schemas.pollResponse),
+                        votes: t.Array(t.Object({ id: t.Integer(), user: schemas.snowflake(), voted: t.Boolean() })),
+                        ids: t.Array(schemas.snowflake()),
+                    }),
+                },
             ),
     );

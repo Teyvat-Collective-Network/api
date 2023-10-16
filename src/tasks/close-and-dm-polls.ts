@@ -23,11 +23,11 @@ async function run() {
 
         for (const poll of pendingDM)
             try {
-                const voted = new Set((await db.poll_votes.find({ poll: poll.id }).toArray()).map((x: any) => x.id));
+                const voted = new Set((await db.votes.find({ poll: poll.id }).toArray()).map((x: any) => x.user));
 
                 const waiting: string[] = (await db.guilds.find().toArray())
                     .flatMap((x: any) => (poll.restricted ? [x.delegated ? x.advisor : x.owner] : [x.owner, x.advisor]))
-                    .filter((x) => !voted.has(x));
+                    .filter((x) => x && !voted.has(x));
 
                 await bot(null, `POST /poll-remind/${poll.id}`, { message: poll.message, waiting });
             } catch (error) {
@@ -38,6 +38,19 @@ async function run() {
             try {
                 await bot(null, `PUT /poll`, { ...poll, _id: undefined, closed: true });
                 await bot(null, `POST /log`, { message: `Closed poll #${poll.id}.` });
+
+                const voted = new Set((await db.votes.find({ poll: poll.id }).toArray()).map((x: any) => x.user));
+
+                const waiting: string[] = (await db.guilds.find().toArray())
+                    .flatMap((x: any) => (poll.restricted ? [x.delegated ? x.advisor : x.owner] : [x.owner, x.advisor]))
+                    .filter((x) => x && !voted.has(x));
+
+                await db.vote_records.deleteMany({ id: poll.id });
+
+                await db.vote_records.insertMany([
+                    ...[...voted].map((user) => ({ id: poll.id, user, voted: true })),
+                    ...waiting.map((user) => ({ id: poll.id, user, voted: false })),
+                ]);
             } catch (error) {
                 logger.error(error, "bcb12bff-930c-4fd5-9206-10ea98e901df");
             }
