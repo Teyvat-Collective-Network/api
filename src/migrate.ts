@@ -14,14 +14,14 @@ const cache: Record<string, Db> = {};
 const src = new Proxy(
     {},
     {
-        get(_, property: string): Record<string, Collection<Document>> {
-            cache[property] ??= client.db(property);
+        get(_, db: string): Record<string, Collection<Document>> {
+            cache[db] ??= client.db(db);
 
             return new Proxy(
                 {},
                 {
-                    get(_, property: string): Collection<Document> {
-                        return cache[property].collection(property);
+                    get(_, collection: string): Collection<Document> {
+                        return cache[db].collection(collection);
                     },
                 },
             );
