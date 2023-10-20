@@ -280,6 +280,9 @@ async function getGCID(message: { original: { channel: string }; mirrors: { chan
     return +(Object.entries(map).sort(([, x], [, y]) => y - x)[0]?.[0] ?? 0);
 }
 
+const gmcount = await src["TCN-relay"].messages.countDocuments();
+let gmi = 0;
+
 for (const entry of await src["TCN-relay"].messages.find().toArray()) {
     const id = await getGCID(entry as any);
     if (id === 0) continue;
@@ -297,6 +300,9 @@ for (const entry of await src["TCN-relay"].messages.find().toArray()) {
         },
         { upsert: true },
     );
+
+    gmi++;
+    if (gmi % 1000 === 0) logger.info(`${gmi} / ${gmcount}`);
 }
 
 // global_users
