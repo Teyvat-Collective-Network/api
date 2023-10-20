@@ -292,10 +292,7 @@ for await (const entry of src["TCN-relay"].messages.find()) {
 
     const id = await getGCID(entry as any);
 
-    if (id === 0) {
-        logger.error(entry, "skipped");
-        continue;
-    }
+    if (id === 0) continue;
 
     gmToInsert.push({
         message: entry.original.message,
@@ -306,7 +303,7 @@ for await (const entry of src["TCN-relay"].messages.find()) {
         instances: entry.mirrors.map((x: any) => ({ channel: x.channel, message: x.message })),
     });
 
-    if (gmi % 5000 === 0) logger.info(`${gmi} / ${gmcount}`);
+    if (gmi % 50000 === 0) logger.info(`${gmi} / ${gmcount}`);
 }
 
 logger.info("inserting...");
