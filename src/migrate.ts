@@ -417,7 +417,7 @@ for (const entry of await src["TCN-manager"].autoroles.find().toArray()) {
     else if (entry.type === 1)
         await db.rolesync.updateOne(
             { guild: entry.guild, "apiToRole.value": { $ne: entry.api } },
-            { $push: { type: "role", value: entry.api, guild: undefined, roles: [entry.discord] } },
+            { $push: { apiToRole: { type: "role", value: entry.api, guild: undefined, roles: [entry.discord] } } },
             { upsert: false },
         );
     else if (entry.type === 2) await db.rolesync.updateOne({ guild: entry.guild }, { $addToSet: { roleToStaff: entry.discord } }, { upsert: false });
