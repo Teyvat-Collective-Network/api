@@ -46,7 +46,8 @@ logger.info("replicating audit_logs");
 // autosync
 logger.info("replicating autosync");
 for (const entry of await src["TCN-manager"].partnerlists.find().toArray())
-    if (entry.instances.length !== 1) throw `[autosync] entry for ${entry.guild} does not have one instance`;
+    if (entry.instances.length === 0) continue;
+    else if (entry.instances.length > 1) throw `[autosync] entry for ${entry.guild} does not have one instance`;
     else
         await db.autosync.updateOne(
             { guild: entry.guild },
