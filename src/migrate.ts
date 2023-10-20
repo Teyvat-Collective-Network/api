@@ -455,39 +455,28 @@ for (const entry of await src["TCN-site"].polls.find().toArray()) {
 logger.info("replicating votes");
 const pollCache: Record<number, any> = (await db.polls.find().toArray()).map((poll: any) => [poll.id, poll]);
 
-await db.votes.deleteMany();
-
-let vcount = await src["TCN-site"].poll_votes.countDocuments();
-let vi = 0;
-
-const vToInsert: any[] = [];
-
-for (const entry of await src["TCN-site"].poll_votes.find().toArray()) {
-    vi++;
-
+for (const entry of await src["TCN-site"].poll_votes.find().toArray())
     if (pollCache[entry.id])
-        vToInsert.push({
-            poll: entry.id,
-            user: entry.user,
-            mode: pollCache[entry.id].mode,
-            abstain: entry.abstain ?? false,
-            yes: entry.yes ?? undefined,
-            verdict: entry.verdict ? { "induct-now": "induct", "induct-later": "preinduct" }[entry.verdict as string] ?? entry.verdict : undefined,
-            candidates:
-                pollCache[entry.id].mode === "election" && !entry.abstain
-                    ? Object.fromEntries([
-                          ...pollCache[entry.id].candidates.map((x: string) => [x, 0]),
-                          ...(entry.countered ?? []).map((x: string) => [x, -1]),
-                          ...entry.rankings.map((x: string, i: number) => [x, i + 1]),
-                      ])
-                    : undefined,
-        });
+        await db.votes.updateOne(
+            { poll: entry.id, user: entry.user },
+            {
+                $set: {
+                    mode: pollCache[entry.id].mode,
+                    abstain: entry.abstain ?? false,
+                    yes: entry.yes ?? undefined,
+                    verdict: entry.verdict ? { "induct-now": "induct", "induct-later": "preinduct" }[entry.verdict as string] ?? entry.verdict : undefined,
+                    candidates:
+                        pollCache[entry.id].mode === "election" && !entry.abstain
+                            ? Object.fromEntries([
+                                  ...pollCache[entry.id].candidates.map((x: string) => [x, 0]),
+                                  ...(entry.countered ?? []).map((x: string) => [x, -1]),
+                                  ...entry.rankings.map((x: string, i: number) => [x, i + 1]),
+                              ])
+                            : undefined,
+                },
+            },
+            { upsert: true },
+        );
 
-    if (vi % 50000 === 0) logger.info(`${vi} / ${vcount}`);
-}
-
-logger.info("inserting...");
-while (vToInsert.length > 0) {
-    await db.votes.insertMany(vToInsert.splice(0, 10000));
-    logger.info(`${vToInsert.length} left`);
-}
+logger.info("DONE!");
+process.exit(0);
