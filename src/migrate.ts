@@ -307,7 +307,10 @@ for await (const entry of src["TCN-relay"].messages.find()) {
 }
 
 logger.info("inserting...");
-while (gmToInsert.length > 0) await db.global_messages.insertMany(gmToInsert.splice(0, 100000));
+while (gmToInsert.length > 0) {
+    await db.global_messages.insertMany(gmToInsert.splice(0, 100000));
+    logger.info(`${gmToInsert.length} left`);
+}
 
 // global_users
 logger.info("replicating global_users");
