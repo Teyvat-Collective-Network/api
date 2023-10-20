@@ -18,7 +18,7 @@ export default async function (token: string | null, route: string, body?: any) 
     let req: Response;
 
     try {
-        req = await fetch(`${Bun.env.DISCORD_INTERFACE}${path}`, {
+        req = await fetch(`${Bun.env.BOT_API}${path}`, {
             method,
             headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { "Content-Type": "application/json" } : {}) },
             body: body ? JSON.stringify(stripMongoIds(body)) : body,
