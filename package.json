@@ -3,7 +3,7 @@
     "version": "1.0.50",
     "scripts": {
         "dev": "bun run --watch src/index.ts | pino-pretty -i hostname,pid",
-        "migrate": "bun run src/migrate.ts | pino-pretty -i hostname,pidØ"
+        "migrate": "bun run src/migrate.ts | pino-pretty -i hostname,pid"
     },
     "dependencies": {
         "@elysiajs/bearer": "^0.7.0",
