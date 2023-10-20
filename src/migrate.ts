@@ -307,7 +307,7 @@ for await (const entry of src["TCN-relay"].messages.find()) {
         { upsert: true },
     );
 
-    logger.info(`${gmi} / ${gmcount}`);
+    if (gmi % 5000 === 0) logger.info(`${gmi} / ${gmcount}`);
 }
 
 // global_users
