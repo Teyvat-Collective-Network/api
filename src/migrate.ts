@@ -283,6 +283,10 @@ async function getGCID(message: { original: { channel: string }; mirrors: { chan
 const gmcount = await src["TCN-relay"].messages.countDocuments();
 let gmi = 0;
 
+await db.global_messages.deleteMany();
+
+const gmToInsert: any[] = [];
+
 for await (const entry of src["TCN-relay"].messages.find()) {
     gmi++;
 
@@ -293,22 +297,20 @@ for await (const entry of src["TCN-relay"].messages.find()) {
         continue;
     }
 
-    await db.global_messages.updateOne(
-        { message: entry.original.message },
-        {
-            $set: {
-                id,
-                author: entry.author,
-                channel: entry.original.channel,
-                ...(entry.purged ? { deleted: true } : {}),
-                instances: entry.mirrors.map((x: any) => ({ channel: x.channel, message: x.message })),
-            },
-        },
-        { upsert: true },
-    );
+    gmToInsert.push({
+        message: entry.original.message,
+        id,
+        author: entry.author,
+        channel: entry.original.channel,
+        ...(entry.purged ? { deleted: true } : {}),
+        instances: entry.mirrors.map((x: any) => ({ channel: x.channel, message: x.message })),
+    });
 
     if (gmi % 5000 === 0) logger.info(`${gmi} / ${gmcount}`);
 }
+
+logger.info("inserting...");
+await db.global_messages.insertMany(gmToInsert);
 
 // global_users
 logger.info("replicating global_users");
