@@ -284,6 +284,8 @@ const gmcount = await src["TCN-relay"].messages.countDocuments();
 let gmi = 0;
 
 for (const entry of await src["TCN-relay"].messages.find().toArray()) {
+    gmi++;
+
     const id = await getGCID(entry as any);
     if (id === 0) continue;
 
@@ -301,8 +303,7 @@ for (const entry of await src["TCN-relay"].messages.find().toArray()) {
         { upsert: true },
     );
 
-    gmi++;
-    if (gmi % 1000 === 0) logger.info(`${gmi} / ${gmcount}`);
+    logger.info(`${gmi} / ${gmcount}`);
 }
 
 // global_users
