@@ -1,22 +1,24 @@
 {
-  "name": "api",
-  "version": "1.0.50",
-  "scripts": {
-    "dev": "bun run --watch src/index.ts | pino-pretty -i hostname,pid"
-  },
-  "dependencies": {
-    "@elysiajs/bearer": "^0.7.0",
-    "@elysiajs/cors": "^0.7.0",
-    "@elysiajs/jwt": "^0.7.0",
-    "@elysiajs/swagger": "^0.7.2",
-    "elysia": "latest",
-    "elysia-rate-limit": "^1.2.0",
-    "mongodb": "^6.1.0",
-    "pino": "^8.15.1",
-    "pino-pretty": "^10.2.0"
-  },
-  "devDependencies": {
-    "bun-types": "latest"
-  },
-  "module": "src/index.js"
+    "name": "api",
+    "version": "1.0.50",
+    "scripts": {
+        "dev": "bun run --watch src/index.ts | pino-pretty -i hostname,pid",
+        "migrate": "bun run src/migrate.ts | pino-pretty -i hostname,pidØ"
+    },
+    "dependencies": {
+        "@elysiajs/bearer": "^0.7.0",
+        "@elysiajs/cors": "^0.7.0",
+        "@elysiajs/jwt": "^0.7.0",
+        "@elysiajs/swagger": "^0.7.2",
+        "discord.js": "^14.13.0",
+        "elysia": "latest",
+        "elysia-rate-limit": "^1.2.0",
+        "mongodb": "^6.1.0",
+        "pino": "^8.15.1",
+        "pino-pretty": "^10.2.0"
+    },
+    "devDependencies": {
+        "bun-types": "latest"
+    },
+    "module": "src/index.js"
 }
