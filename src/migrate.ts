@@ -283,7 +283,7 @@ async function getGCID(message: { original: { channel: string }; mirrors: { chan
 const gmcount = await src["TCN-relay"].messages.countDocuments();
 let gmi = 0;
 
-for (const entry of await src["TCN-relay"].messages.find().toArray()) {
+for await (const entry of src["TCN-relay"].messages.find()) {
     gmi++;
 
     const id = await getGCID(entry as any);
