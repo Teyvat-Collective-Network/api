@@ -107,20 +107,65 @@ for (const entry of await src["TCN-banshare"].banshare_posts.find().toArray())
         { upsert: false },
     );
 
-for (const entry of await src["TCN-banshare"].executed.find().toArray()) {
-}
+("don't replicate executed since that information isn't correctly tracked in the old version");
+("don't replicate reports since that information is not tracked in the old version");
 
 // characters
+for (const entry of await src["TCN-site"].characters.find().toArray())
+    await db.characters.updateOne(
+        { id: entry.id },
+        {
+            $set: {
+                name: entry.name,
+                short: entry.name.toLowerCase().split(/\s+/).join("") === entry.id ? null : `${entry.id[0].toUpperCase()}${entry.id.slice(1)}`,
+                "attributes.element": entry.element,
+                "attributes.weapon": entry.weapon,
+                "attributes.region": entry.region,
+            },
+        },
+        { upsert: true },
+    );
 
 // counters
+const entry = await src["TCN-site"].counters.findOne({ seq: "polls" });
+if (entry) await db.counters.updateOne({ sequence: "polls" }, { $set: { value: entry.val } }, { upsert: true });
 
 // deleted_banshares
+("nothing to import");
 
 // docs
+for (const entry of await src["TCN-site"].docs.find().toArray())
+    await db.docs.updateOne(
+        { id: entry.id },
+        {
+            $set: {
+                official: entry.official,
+                deleted: entry.deleted,
+                author: entry.author,
+                anon: entry.anon,
+                allowCouncil: entry.allow_council,
+                allowEveryone: entry.allow_everyone,
+                allowLoggedIn: entry.allow_logged_in,
+                allowlist: entry.allowlist.split(/\s+/).filter((x: string) => x),
+                title: entry.name,
+                body: entry.content,
+                embedTitle: entry.embed_title,
+                embedBody: entry.embed_body,
+                embedColor: entry.embed_color,
+                embedImage: entry.embed_image ?? "",
+                embedThumbnail: entry.thumbnail ?? false,
+            },
+        },
+        { upsert: true },
+    );
 
 // election_history
+for (const entry of await src["TCN-site"].election_history.find().toArray()) {
+}
 
 // election_history_waves
+await db.election_history_waves.deleteMany();
+await db.election_history_waves.insertMany(new Array(await src["TCN-site"].election_history.countDocuments()).fill(0).map((_, i) => ({ wave: i + 1 })));
 
 // events
 
