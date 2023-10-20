@@ -1,7 +1,9 @@
 import { ChannelType, Client, Events } from "discord.js";
 import { Collection, Db, Document } from "mongodb";
-import db, { autoinc, client } from "./lib/db.js";
+import db, { autoinc, client, connect } from "./lib/db.js";
 import logger from "./lib/logger.js";
+
+await connect();
 
 const bot = new Client({ intents: 0 });
 await bot.login(Bun.env.GLOBAL_TOKEN!);
