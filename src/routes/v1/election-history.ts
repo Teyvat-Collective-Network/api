@@ -15,16 +15,21 @@ export default (app: App) =>
                 "/",
                 async () => {
                     const waves: Record<number, ElectionHistoryRecord[]> = {};
+                    const seats: Record<number, number> = {};
 
                     for (const entry of (await db.election_history.find().toArray()) as unknown[] as (ElectionHistoryRecord & { wave: number })[])
                         (waves[entry.wave] ??= []).push({ id: entry.id, status: entry.status, rerunning: entry.rerunning });
 
-                    for (const entry of (await db.election_history_waves.find().toArray()) as unknown[] as { wave: number }[]) waves[entry.wave] ??= [];
+                    for (const entry of (await db.election_history_waves.find().toArray()) as unknown[] as { wave: number; seats: number }[]) {
+                        waves[entry.wave] ??= [];
+                        seats[entry.wave] = entry.seats;
+                    }
 
                     return Object.keys(waves)
                         .sort((x, y) => +y - +x)
                         .map((x) => ({
                             wave: +x,
+                            seats: seats[+x],
                             users: waves[+x].sort(
                                 (x, y) => (x.rerunning ? 0 : 1) - (y.rerunning ? 0 : 1) || (x.id === y.id ? 0 : BigInt(x.id) > BigInt(y.id) ? -1 : 1),
                             ),
@@ -46,6 +51,7 @@ export default (app: App) =>
                     response: t.Array(
                         t.Object({
                             wave: t.Integer({ description: "The election wave number." }),
+                            seats: t.Integer({ minimum: 0, description: "The number of seats for this election." }),
                             users: t.Array(
                                 t.Object({
                                     id: schemas.snowflake("The ID of the candidate."),
@@ -62,7 +68,7 @@ export default (app: App) =>
             .post(
                 "/:wave",
                 async ({ params: { wave } }) => {
-                    const doc = await db.election_history_waves.findOneAndUpdate({ wave }, { $set: { wave } }, { upsert: true });
+                    const doc = await db.election_history_waves.findOneAndUpdate({ wave }, { $setOnInsert: { seats: 0 } }, { upsert: true });
                     if (doc) throw new APIError(409, codes.DUPLICATE, `Wave ${wave} already exists.`);
                 },
                 {
@@ -76,6 +82,33 @@ export default (app: App) =>
                             \`\`\`
 
                             Create an empty election wave. Observer-only.
+                        `),
+                    },
+                    params: t.Object({
+                        wave: t.Numeric({ minimum: 1, description: "The election wave." }),
+                    }),
+                },
+            )
+            .patch(
+                "/:wave",
+                async ({ body, params: { wave } }) => {
+                    const doc = await db.election_history_waves.findOneAndUpdate({ wave }, { $set: body });
+                    if (!doc) throw new APIError(404, codes.MISSING_ELECTION_WAVE, `No election exists with wave ${wave}.`);
+                },
+                {
+                    beforeHandle: [isSignedIn, isObserver, hasScope("records/write")],
+                    body: t.Object({
+                        seats: t.Optional(t.Integer({ minimum: 0, description: "The number of seats for this election." })),
+                    }),
+                    detail: {
+                        tags: ["V1"],
+                        summary: "Edit an election wave.",
+                        description: trim(`
+                            \`\`\`
+                            Scope: records/write
+                            \`\`\`
+
+                            Edit an election wave. Observer-only.
                         `),
                     },
                     params: t.Object({
