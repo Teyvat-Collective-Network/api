@@ -287,7 +287,11 @@ for (const entry of await src["TCN-relay"].messages.find().toArray()) {
     gmi++;
 
     const id = await getGCID(entry as any);
-    if (id === 0) continue;
+
+    if (id === 0) {
+        logger.error(entry, "skipped");
+        continue;
+    }
 
     await db.global_messages.updateOne(
         { message: entry.original.message },
