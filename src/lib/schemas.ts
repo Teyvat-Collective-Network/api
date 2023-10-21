@@ -345,7 +345,7 @@ export default {
             t.Object({
                 type: t.String({ description: "`position` for observer/owner/advisor/voter/council/staff, `role` for other roles." }),
                 value: id("For positions, `observer` or `owner`, etc. For roles, the role."),
-                guild: t.Optional(snowflake("The ID of the guild in which to look for this condition.")),
+                guild: t.Nullable(snowflake("The ID of the guild in which to look for this condition.")),
                 roles: t.Array(snowflake(), { description: "The array of roles to assign for this condition." }),
             }),
         ),
