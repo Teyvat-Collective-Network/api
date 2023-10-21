@@ -348,7 +348,8 @@ await run(
 
                 await db.election_history_waves.insertOne({ wave, seats: x.seats });
                 for (const user of x.candidates)
-                    await db.election_history.insertOne({ wave, id: user.id, status: user.status, rerunning: user.rerunning ?? false });
+                    if (user.id.match(/^[1-9][0-9]{16,19}$/))
+                        await db.election_history.insertOne({ wave, id: user.id, status: user.status, rerunning: user.rerunning ?? false });
             }),
         );
     },
