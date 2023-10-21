@@ -35,7 +35,11 @@ const skip = Bun.env.SKIP?.split(/\s+/) ?? [];
 async function run(key: string, fn: any, drop?: string[]) {
     if ((!toRun || toRun.includes(key)) && !skip.includes(key)) {
         logger.info(`replicating ${key}`);
-        for (const name of drop ?? []) await db[name].deleteMany();
+        for (const name of drop ?? [key])
+            await db[name]
+                .drop()
+                .then(() => logger.info(`dropped ${name}`))
+                .catch(() => logger.info(`${name} already does not exist`));
         await fn();
     }
 }
@@ -292,54 +296,50 @@ await run("global_filter", async () => {
 });
 
 // global_messages
-await run(
-    "global_messages",
-    async () => {
-        const globalChannelToIDCache: Record<string, number> = {};
+await run("global_messages", async () => {
+    const globalChannelToIDCache: Record<string, number> = {};
 
-        async function getGCID(message: { original: { channel: string }; mirrors: { channel: string }[] }) {
-            const map: Record<number, number> = {};
+    async function getGCID(message: { original: { channel: string }; mirrors: { channel: string }[] }) {
+        const map: Record<number, number> = {};
 
-            for (const channel of [message.original.channel, ...message.mirrors.map((x) => x.channel)]) {
-                const id = (globalChannelToIDCache[channel] ??= (await db.global_connections.findOne({ channel }))?.id ?? 0);
-                map[id] = (map[id] ?? 0) + 1;
-            }
-
-            return +(Object.entries(map).sort(([, x], [, y]) => y - x)[0]?.[0] ?? 0);
+        for (const channel of [message.original.channel, ...message.mirrors.map((x) => x.channel)]) {
+            const id = (globalChannelToIDCache[channel] ??= (await db.global_connections.findOne({ channel }))?.id ?? 0);
+            map[id] = (map[id] ?? 0) + 1;
         }
 
-        const gmcount = await src["TCN-relay"].messages.countDocuments();
-        let gmi = 0;
+        return +(Object.entries(map).sort(([, x], [, y]) => y - x)[0]?.[0] ?? 0);
+    }
 
-        const gmToInsert: any[] = [];
+    const gmcount = await src["TCN-relay"].messages.countDocuments();
+    let gmi = 0;
 
-        for await (const entry of src["TCN-relay"].messages.find()) {
-            gmi++;
+    const gmToInsert: any[] = [];
 
-            const id = await getGCID(entry as any);
+    for await (const entry of src["TCN-relay"].messages.find()) {
+        gmi++;
 
-            if (id === 0) continue;
+        const id = await getGCID(entry as any);
 
-            gmToInsert.push({
-                message: entry.original.message,
-                id,
-                author: entry.author,
-                channel: entry.original.channel,
-                ...(entry.purged ? { deleted: true } : {}),
-                instances: entry.mirrors.map((x: any) => ({ channel: x.channel, message: x.message })),
-            });
+        if (id === 0) continue;
 
-            if (gmi % 50000 === 0) logger.info(`${gmi} / ${gmcount}`);
-        }
+        gmToInsert.push({
+            message: entry.original.message,
+            id,
+            author: entry.author,
+            channel: entry.original.channel,
+            ...(entry.purged ? { deleted: true } : {}),
+            instances: entry.mirrors.map((x: any) => ({ channel: x.channel, message: x.message })),
+        });
 
-        logger.info("inserting...");
-        while (gmToInsert.length > 0) {
-            await db.global_messages.insertMany(gmToInsert.splice(0, 10000));
-            logger.info(`${gmToInsert.length} left`);
-        }
-    },
-    ["global_messages"],
-);
+        if (gmi % 50000 === 0) logger.info(`${gmi} / ${gmcount}`);
+    }
+
+    logger.info("inserting...");
+    while (gmToInsert.length > 0) {
+        await db.global_messages.insertMany(gmToInsert.splice(0, 10000));
+        logger.info(`${gmToInsert.length} left`);
+    }
+});
 
 // global_users
 await run("global_users", async () => {
