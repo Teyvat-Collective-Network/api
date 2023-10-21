@@ -154,7 +154,7 @@ await run(
                             advisor: false,
                             council: false,
                             guilds: {},
-                            id: `1${"0".repeat(19)}`,
+                            id: "1".repeat(18),
                             observer: false,
                             observerSince: 0,
                             owner: false,
