@@ -102,7 +102,14 @@ await run(
                         : entry.action === "elected"
                         ? [AuditLogAction.USERS_PROMOTE, { id: entry.primary }]
                         : entry.action === "owner-abdicates-advisor" || entry.action === "advisor-leaves"
-                        ? [AuditLogAction.GUILDS_EDIT, { id: entry.guild, name, changes: { advisor: [entry.secondary, null] } }]
+                        ? [
+                              AuditLogAction.GUILDS_EDIT,
+                              {
+                                  id: entry.guild,
+                                  name,
+                                  changes: { advisor: [entry.action === "owner-abdicates-advisor" ? entry.secondary : entry.primary, null] },
+                              },
+                          ]
                         : entry.action === "owner-defers-vote"
                         ? [
                               AuditLogAction.GUILDS_EDIT,
