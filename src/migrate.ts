@@ -314,7 +314,7 @@ await run("docs", async () => {
             {
                 $set: {
                     official: entry.official,
-                    deleted: entry.deleted,
+                    deleted: entry.deleted ?? false,
                     author: entry.author,
                     anon: entry.anon,
                     allowCouncil: entry.allow_council,
