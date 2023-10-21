@@ -31,7 +31,7 @@ export type Guild = {
     mascot: string;
     invite: string;
     owner: string;
-    advisor?: string | null;
+    advisor: string | null;
     voter: string;
     delegated: boolean;
     users: Record<string, GuildUser>;

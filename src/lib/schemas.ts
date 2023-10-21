@@ -195,7 +195,7 @@ export default {
         mascot: id("The guild's mascot character ID."),
         invite: t.String({ description: "An invite code pointing to the guild." }),
         owner: snowflake("The Discord ID of the guild's owner."),
-        advisor: t.Optional(t.Nullable(snowflake("The Discord ID of the guild's council advisor."))),
+        advisor: t.Nullable(snowflake("The Discord ID of the guild's council advisor.")),
         voter: snowflake("The Discord ID of the guild's designated voter."),
         delegated: t.Boolean({ description: "Whether or not the guild's designated voter is currently delegated to its council advisor." }),
         users: t.Object(
