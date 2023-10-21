@@ -359,7 +359,7 @@ logger.info("replicating observation_records");
 await db.counters.deleteOne({ sequence: "observation-records" });
 await db.observation_records.deleteMany();
 
-for (const entry of await db.observation_schedule.find().toArray())
+for (const entry of await src["TCN-site"].observation_schedule.find().toArray())
     await db.observation_records.insertOne({
         uuid: await autoinc("observation-records"),
         id: entry.guild,
@@ -369,6 +369,7 @@ for (const entry of await db.observation_schedule.find().toArray())
         start: entry.start_year && entry.start_month && entry.start_date ? new Date(entry.start_year, entry.start_month - 1, entry.start_date).getTime() : null,
         end: entry.end_year && entry.end_month && entry.end_date ? new Date(entry.end_year, entry.end_month - 1, entry.end_date).getTime() : null,
         status: entry.result,
+        notes: entry.notes ?? "",
     });
 
 // polls
