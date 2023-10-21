@@ -5,6 +5,8 @@ import logger from "./lib/logger.js";
 
 await connect();
 
+await client.db(Bun.env.DB_NAME!).dropDatabase();
+
 const bot = new Client({ intents: 0 });
 await bot.login(Bun.env.GLOBAL_TOKEN!);
 await new Promise((r) => bot.on(Events.ClientReady, r));
@@ -427,21 +429,22 @@ for (const entry of await src["TCN-manager"].autoroles.find().toArray()) {
 // users
 logger.info("replicating users");
 for (const entry of await src["TCN-api"].users.find().toArray())
-    await db.users.updateOne(
-        { id: entry.id },
-        {
-            $set: {
-                observer: entry.roles.includes("observer"),
-                observerSince: entry.roles.includes("observer")
-                    ? ((e: any) => (e ? new Date(e.year, e.month - 1, e.date, 12, 0, 0).getTime() : 0))(
-                          await src["TCN-site"].observer_terms.findOne({ user: entry.id }),
-                      )
-                    : 0,
-                roles: entry.roles.filter((x: string) => ["developer"].includes(x)),
+    if (entry.id)
+        await db.users.updateOne(
+            { id: entry.id },
+            {
+                $set: {
+                    observer: entry.roles.includes("observer"),
+                    observerSince: entry.roles.includes("observer")
+                        ? ((e: any) => (e ? new Date(e.year, e.month - 1, e.date, 12, 0, 0).getTime() : 0))(
+                              await src["TCN-site"].observer_terms.findOne({ user: entry.id }),
+                          )
+                        : 0,
+                    roles: entry.roles.filter((x: string) => ["developer"].includes(x)),
+                },
             },
-        },
-        { upsert: true },
-    );
+            { upsert: true },
+        );
 
 // vote_records
 logger.info("replicating vote_records");
