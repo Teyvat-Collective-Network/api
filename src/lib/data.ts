@@ -24,6 +24,7 @@ function formatGuild(guild: Guild): Guild {
     guild.users ??= {};
     guild.users[guild.owner] ??= { staff: true, roles: [] };
     if (guild.advisor) guild.users[guild.advisor] ??= { staff: true, roles: [] };
+    else guild.advisor = null;
 
     for (const [id, user] of Object.entries(guild.users)) {
         user.staff ||= [guild.owner, guild.advisor].includes(id);
