@@ -253,7 +253,7 @@ await run("banshares", async () => {
                     evidence: entry.evidence ?? "(this banshare existed before the evidence was stored in the DB)",
                     server: entry.server,
                     severity: entry.severity.toUpperCase(),
-                    author: entry.user ?? `1${"0".repeat(19)}`,
+                    author: entry.user ?? "1".repeat(18),
                     created: entry._id.getTimestamp().getTime(),
                     reminded: entry.reminded ?? entry._id.getTimestamp().getTime(),
                     // publisher: undefined, // this is not tracked in the old version
