@@ -542,7 +542,7 @@ await run("observation_records", async () => {
 
 // polls
 await run("polls", async () => {
-    for (const entry of await db.polls.find().toArray())
+    for (const entry of await src["TCN-site"].polls.find().toArray())
         await db.polls.updateOne(
             { id: entry.id },
             {
