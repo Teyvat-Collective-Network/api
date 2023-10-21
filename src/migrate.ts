@@ -325,7 +325,7 @@ await run("docs", async () => {
                     body: entry.content,
                     embedTitle: entry.embed_title,
                     embedBody: entry.embed_body,
-                    embedColor: entry.embed_color,
+                    embedColor: parseInt(entry.embed_color, 16),
                     embedImage: entry.embed_image ?? "",
                     embedThumbnail: entry.thumbnail ?? false,
                 },
