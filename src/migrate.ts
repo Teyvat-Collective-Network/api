@@ -117,6 +117,11 @@ await run(
                                   id: entry.guild,
                                   name,
                                   mascot: mascotMap[entry.id as string] ?? "unknown",
+                                  invite: "null",
+                                  owner: entry.primary,
+                                  advisor: entry.secondary || null,
+                                  voter: entry.primary,
+                                  delegated: false,
                               },
                           ]
                         : entry.action === "induct"
