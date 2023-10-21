@@ -9,11 +9,16 @@ const snowflake = (description?: string) =>
         pattern: "^[1-9][0-9]{16,19}$",
         default: "1012321234321232101",
         description,
-        error: "Invalid ID: must be a valid Discord snowflake (17-20 digit number).",
+        error: `Invalid ID: must be a valid Discord snowflake (17-20 digit number).${description ? ` (description: "${description}")` : ""}`,
     });
 
 const id = (description?: string) =>
-    t.String({ pattern: "^[a-z-]{1,32}$", default: "id", description, error: "Invalid ID: must be 1-32 lowercase letters or dashes." });
+    t.String({
+        pattern: "^[a-z-]{1,32}$",
+        default: "id",
+        description,
+        error: `Invalid ID: must be 1-32 lowercase letters or dashes.${description ? ` (description: "${description}")` : ""}`,
+    });
 
 const reason = t.String({ minLength: 1, maxLength: 256, description: "The reason for this action.", error: "Audit log reason must be 1-256 characters." });
 
