@@ -313,7 +313,7 @@ await run("docs", async () => {
             { id: entry.id },
             {
                 $set: {
-                    official: entry.official,
+                    official: entry.official ?? false,
                     deleted: entry.deleted ?? false,
                     author: entry.author,
                     anon: entry.anon,
