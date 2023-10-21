@@ -14,13 +14,15 @@ export default (app: App) =>
             .get(
                 "/filter",
                 async () => {
-                    return (await db.global_filter.find().toArray()) as unknown[] as {
-                        id: number;
-                        match: string;
-                        user: string;
-                        created: number;
-                        lastUpdated: number;
-                    }[];
+                    return (
+                        (await db.global_filter.find().toArray()) as unknown[] as {
+                            id: number;
+                            match: string;
+                            user: string;
+                            created: number;
+                            lastUpdated: number;
+                        }[]
+                    ).sort((x, y) => x.match.localeCompare(y.match));
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("global/filter/read")],
