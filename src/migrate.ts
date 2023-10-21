@@ -1,5 +1,6 @@
 import { ChannelType, Client, Events } from "discord.js";
 import { Collection, Db, Document } from "mongodb";
+import audit, { AuditLogAction } from "./lib/audit.js";
 import db, { autoinc, client, connect } from "./lib/db.js";
 import logger from "./lib/logger.js";
 
@@ -56,7 +57,129 @@ await run("attributes", async () => {
 });
 
 // audit_logs
-("nothing to import");
+await run(
+    "audit_logs_membership_changes",
+    async () => {
+        const mascotMap: Record<string, string> = {
+            "786025543064748042": "ganyu",
+            "778432104890892288": "childe",
+            "853204818806046730": "ayaka",
+            "776289823199461376": "ningguang",
+            "801704307468533780": "wanderer",
+            "782766417945559051": "rosaria",
+            "805988900513251379": "albedo",
+            "834836716882755584": "raiden",
+            "808500851395395657": "eula",
+            "764710866326650920": "diluc",
+            "864186117438832691": "itto",
+            "821629320656846869": "aloy",
+            "775418768675307520": "razor",
+            "842844545921581126": "kaeya",
+            "787238069186330624": "beidou",
+            "797088957849403392": "baizhu",
+        };
+
+        await db.counters.deleteOne({ sequence: "audit-logs" });
+
+        const nameCache: Record<string, string> = {};
+
+        for (const entry of await src["TCN-site"].membership_changes.find().toArray())
+            if (entry.guild.match(/^[1-9][0-9]{16,19}$/)) {
+                const name = (nameCache[entry.guild] ??=
+                    (await src["TCN-api"].guilds.findOne({ id: entry.guild }))?.name ??
+                    (await src["TCN-site"].guild_map.findOne({ id: entry.guild }))?.name ??
+                    entry.guild);
+
+                await audit(
+                    {
+                        advisor: false,
+                        council: false,
+                        guilds: {},
+                        id: `1${"0".repeat(19)}`,
+                        observer: false,
+                        observerSince: 0,
+                        owner: false,
+                        roles: [],
+                        staff: false,
+                        token: "N/A",
+                        voter: false,
+                    },
+                    ...((entry.action === "add-advisor"
+                        ? [AuditLogAction.GUILDS_EDIT, { id: entry.guild, name, changes: { advisor: [null, entry.primary] } }]
+                        : entry.action === "transfer-ownership"
+                        ? [AuditLogAction.GUILDS_EDIT, { id: entry.guild, name, changes: { owner: [entry.primary, entry.secondary] } }]
+                        : entry.action === "switch-advisor"
+                        ? [AuditLogAction.GUILDS_EDIT, { id: entry.guild, name, changes: { advisor: [entry.primary, entry.secondary] } }]
+                        : entry.action === "term-end"
+                        ? [AuditLogAction.USERS_DEMOTE, { id: entry.primary }]
+                        : entry.action === "elected"
+                        ? [AuditLogAction.USERS_PROMOTE, { id: entry.primary }]
+                        : entry.action === "owner-abdicates-advisor" || entry.action === "advisor-leaves"
+                        ? [AuditLogAction.GUILDS_EDIT, { id: entry.guild, name, changes: { advisor: [entry.secondary, null] } }]
+                        : entry.action === "owner-defers-vote"
+                        ? [
+                              AuditLogAction.GUILDS_EDIT,
+                              { id: entry.guild, name, changes: { voter: [entry.primary, entry.secondary], delegated: [false, true] } },
+                          ]
+                        : entry.action === "observer-steps-down"
+                        ? [AuditLogAction.USERS_DEMOTE, { id: entry.primary }]
+                        : entry.action === "withdrawn" || entry.action === "leaves-by-default"
+                        ? [
+                              AuditLogAction.GUILDS_DELETE,
+                              {
+                                  id: entry.guild,
+                                  name,
+                                  mascot: mascotMap[entry.id as string] ?? "unknown",
+                              },
+                          ]
+                        : entry.action === "induct"
+                        ? [
+                              AuditLogAction.GUILDS_CREATE,
+                              {
+                                  id: entry.guild,
+                                  name,
+                                  mascot: (await src["TCN-api"].guilds.findOne({ id: entry.guild }))?.character ?? mascotMap[entry.id as string] ?? "unknown",
+                                  invite: "null",
+                                  owner: entry.primary,
+                                  advisor: entry.secondary || null,
+                                  voter: entry.primary,
+                                  delegated: false,
+                              },
+                          ]
+                        : entry.action === "swap-owner-and-advisor"
+                        ? [
+                              AuditLogAction.GUILDS_EDIT,
+                              { id: entry.guild, name, changes: { owner: [entry.primary, entry.secondary], advisor: [entry.secondary, entry.primary] } },
+                          ]
+                        : entry.action === "re-elected"
+                        ? [AuditLogAction.USERS_TERM_REFRESH, { id: entry.primary }]
+                        : entry.action === "owner-reclaims-vote"
+                        ? [
+                              AuditLogAction.GUILDS_EDIT,
+                              { id: entry.guild, name, changes: { voter: [entry.secondary, entry.primary], delegated: [true, false] } },
+                          ]
+                        : undefined) as [AuditLogAction, any]),
+                    [
+                        entry.notes ||
+                            {
+                                "term-end": "Regular end of term.",
+                                elected: "Elected.",
+                                "owner-abdicates-advisor": "Abdicated by server owner.",
+                                "advisor-leaves": "Voluntarily left the position.",
+                                "observer-steps-down": "Voluntarily stepped down.",
+                                withdrawn: "Voluntarily withdrawn.",
+                                "re-elected": "Re-elected.",
+                                "leaves-by-default": "Removed by default due to the owner's removal.",
+                            }[entry.action as string],
+                        "Auto-generated by backfill.",
+                    ]
+                        .filter((x) => x)
+                        .join(" "),
+                );
+            }
+    },
+    ["audit_logs"],
+);
 
 // autosync
 await run("autosync", async () => {
