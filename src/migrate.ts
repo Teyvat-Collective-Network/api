@@ -5,8 +5,6 @@ import logger from "./lib/logger.js";
 
 await connect();
 
-await client.db(Bun.env.DB_NAME!).dropDatabase();
-
 const bot = new Client({ intents: 0 });
 await bot.login(Bun.env.GLOBAL_TOKEN!);
 await new Promise((r) => bot.on(Events.ClientReady, r));
@@ -34,9 +32,10 @@ const src = new Proxy(
 const toRun = Bun.env.RUN?.split(/\s+/);
 const skip = Bun.env.SKIP?.split(/\s+/) ?? [];
 
-async function run(key: string, fn: any) {
+async function run(key: string, fn: any, drop?: string[]) {
     if ((!toRun || toRun.includes(key)) && !skip.includes(key)) {
         logger.info(`replicating ${key}`);
+        for (const name of drop ?? []) await db[name].drop();
         await fn();
     }
 }
@@ -197,68 +196,76 @@ await run("docs", async () => {
 
 // election_history
 // election_history_waves
-await run("election_history", async () => {
-    await db.election_history.deleteMany();
-    await db.election_history_waves.deleteMany();
+await run(
+    "election_history",
+    async () => {
+        await db.election_history.deleteMany();
+        await db.election_history_waves.deleteMany();
 
-    await Promise.all(
-        (await src["TCN-site"].election_history.find().toArray()).reverse().map(async (x, i) => {
-            const wave = i + 1;
+        await Promise.all(
+            (await src["TCN-site"].election_history.find().toArray()).reverse().map(async (x, i) => {
+                const wave = i + 1;
 
-            await db.election_history_waves.insertOne({ wave, seats: x.seats });
-            for (const user of x.candidates)
-                await db.election_history.insertOne({ wave, id: user.id, status: user.status, rerunning: user.rerunning ?? false });
-        }),
-    );
-});
+                await db.election_history_waves.insertOne({ wave, seats: x.seats });
+                for (const user of x.candidates)
+                    await db.election_history.insertOne({ wave, id: user.id, status: user.status, rerunning: user.rerunning ?? false });
+            }),
+        );
+    },
+    ["election_history", "election_history_waves"],
+);
 
 // events
 ("voluntarily not importing");
 
 // global_channels
 // global_connections
-await run("global_channels_and_connections", async () => {
-    await Promise.all(
-        [
-            ["TCN", "TCN Public General"],
-            ["lounge", "TCN Staff Lounge"],
-            ["office", "TCN Staff Office"],
-        ].map(async ([id, name], i) => {
-            const entry = (await src["TCN-relay"].globals.findOne({ name: id }))!;
+await run(
+    "global_channels_and_connections",
+    async () => {
+        await Promise.all(
+            [
+                ["TCN", "TCN Public General"],
+                ["lounge", "TCN Staff Lounge"],
+                ["office", "TCN Staff Office"],
+            ].map(async ([id, name], i) => {
+                const entry = (await src["TCN-relay"].globals.findOne({ name: id }))!;
 
-            await db.global_channels.updateOne(
-                { id: i + 1 },
-                {
-                    $set: {
-                        name,
-                        public: true,
-                        logs: entry.logs,
-                        mods: id === "TCN" ? (await src["TCN-api"].users.find({ roles: "global-mod" }).toArray()).map((x: any) => x.id) : [],
-                        bans: entry.bans,
-                        panic: false,
-                        ignoreFilter: id !== "TCN",
+                await db.global_channels.updateOne(
+                    { id: i + 1 },
+                    {
+                        $set: {
+                            name,
+                            public: true,
+                            logs: entry.logs,
+                            mods: id === "TCN" ? (await src["TCN-api"].users.find({ roles: "global-mod" }).toArray()).map((x: any) => x.id) : [],
+                            bans: entry.bans,
+                            panic: false,
+                            ignoreFilter: id !== "TCN",
+                        },
                     },
-                },
-                { upsert: true },
-            );
+                    { upsert: true },
+                );
 
-            for (const ch of entry.subscriptions as string[]) {
-                try {
-                    const channel = await bot.channels.fetch(ch);
-                    if (channel?.type !== ChannelType.GuildText) throw 0;
+                for (const ch of entry.subscriptions as string[]) {
+                    try {
+                        const channel = await bot.channels.fetch(ch);
+                        if (channel?.type !== ChannelType.GuildText) throw 0;
 
-                    await db.global_connections.updateOne(
-                        { id: i + 1, guild: channel.guild.id },
-                        { $set: { channel: ch, suspended: false, replyStyle: "text", showServers: true, showTag: false, bans: [] } },
-                        { upsert: true },
-                    );
-                } catch {
-                    console.error(`Could not obtain global channel ${ch}, so dropping it from the list.`);
+                        await db.global_connections.updateOne(
+                            { id: i + 1, guild: channel.guild.id },
+                            { $set: { channel: ch, suspended: false, replyStyle: "text", showServers: true, showTag: false, bans: [] } },
+                            { upsert: true },
+                        );
+                    } catch {
+                        console.error(`Could not obtain global channel ${ch}, so dropping it from the list.`);
+                    }
                 }
-            }
-        }),
-    );
-});
+            }),
+        );
+    },
+    ["global_channels", "global_connections"],
+);
 
 // global_filter
 await run("global_filter", async () => {
@@ -285,52 +292,54 @@ await run("global_filter", async () => {
 });
 
 // global_messages
-await run("global_messages", async () => {
-    const globalChannelToIDCache: Record<string, number> = {};
+await run(
+    "global_messages",
+    async () => {
+        const globalChannelToIDCache: Record<string, number> = {};
 
-    async function getGCID(message: { original: { channel: string }; mirrors: { channel: string }[] }) {
-        const map: Record<number, number> = {};
+        async function getGCID(message: { original: { channel: string }; mirrors: { channel: string }[] }) {
+            const map: Record<number, number> = {};
 
-        for (const channel of [message.original.channel, ...message.mirrors.map((x) => x.channel)]) {
-            const id = (globalChannelToIDCache[channel] ??= (await db.global_connections.findOne({ channel }))?.id ?? 0);
-            map[id] = (map[id] ?? 0) + 1;
+            for (const channel of [message.original.channel, ...message.mirrors.map((x) => x.channel)]) {
+                const id = (globalChannelToIDCache[channel] ??= (await db.global_connections.findOne({ channel }))?.id ?? 0);
+                map[id] = (map[id] ?? 0) + 1;
+            }
+
+            return +(Object.entries(map).sort(([, x], [, y]) => y - x)[0]?.[0] ?? 0);
         }
 
-        return +(Object.entries(map).sort(([, x], [, y]) => y - x)[0]?.[0] ?? 0);
-    }
+        const gmcount = await src["TCN-relay"].messages.countDocuments();
+        let gmi = 0;
 
-    const gmcount = await src["TCN-relay"].messages.countDocuments();
-    let gmi = 0;
+        const gmToInsert: any[] = [];
 
-    await db.global_messages.deleteMany();
+        for await (const entry of src["TCN-relay"].messages.find()) {
+            gmi++;
 
-    const gmToInsert: any[] = [];
+            const id = await getGCID(entry as any);
 
-    for await (const entry of src["TCN-relay"].messages.find()) {
-        gmi++;
+            if (id === 0) continue;
 
-        const id = await getGCID(entry as any);
+            gmToInsert.push({
+                message: entry.original.message,
+                id,
+                author: entry.author,
+                channel: entry.original.channel,
+                ...(entry.purged ? { deleted: true } : {}),
+                instances: entry.mirrors.map((x: any) => ({ channel: x.channel, message: x.message })),
+            });
 
-        if (id === 0) continue;
+            if (gmi % 50000 === 0) logger.info(`${gmi} / ${gmcount}`);
+        }
 
-        gmToInsert.push({
-            message: entry.original.message,
-            id,
-            author: entry.author,
-            channel: entry.original.channel,
-            ...(entry.purged ? { deleted: true } : {}),
-            instances: entry.mirrors.map((x: any) => ({ channel: x.channel, message: x.message })),
-        });
-
-        if (gmi % 50000 === 0) logger.info(`${gmi} / ${gmcount}`);
-    }
-
-    logger.info("inserting...");
-    while (gmToInsert.length > 0) {
-        await db.global_messages.insertMany(gmToInsert.splice(0, 10000));
-        logger.info(`${gmToInsert.length} left`);
-    }
-});
+        logger.info("inserting...");
+        while (gmToInsert.length > 0) {
+            await db.global_messages.insertMany(gmToInsert.splice(0, 10000));
+            logger.info(`${gmToInsert.length} left`);
+        }
+    },
+    ["global_messages"],
+);
 
 // global_users
 await run("global_users", async () => {
@@ -376,7 +385,6 @@ await run("guilds", async () => {
 // observation_records
 await run("observation_records", async () => {
     await db.counters.deleteOne({ sequence: "observation-records" });
-    await db.observation_records.deleteMany();
 
     for (const entry of await src["TCN-site"].observation_schedule.find().toArray())
         await db.observation_records.insertOne({
