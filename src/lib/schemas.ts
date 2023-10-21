@@ -25,7 +25,7 @@ const reason = t.String({ minLength: 1, maxLength: 256, description: "The reason
 export const fields = {
     docId: t.String({
         minLength: 24,
-        maxLength: 24,
+        maxLength: 32,
         pattern: "^[A-Za-z0-9]+$",
         description: "The unique ID of this document.",
         default: "MKlOWWndmmrMBgOwUjmRv271",
