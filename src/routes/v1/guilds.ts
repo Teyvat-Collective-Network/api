@@ -160,7 +160,7 @@ export default (app: App) =>
                         mascot: t.Optional(schemas.guild.properties.mascot),
                         invite: t.Optional(schemas.guild.properties.invite),
                         owner: t.Optional(schemas.guild.properties.owner),
-                        advisor: schemas.guild.properties.advisor,
+                        advisor: t.Optional(schemas.guild.properties.advisor),
                         delegated: t.Optional(schemas.guild.properties.delegated),
                     }),
                     detail: {
