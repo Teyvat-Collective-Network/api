@@ -18,6 +18,10 @@ image = "https://i.imgur.com/U9Wqlug.png"
 inject = { source = "tcn/partners", group = "element", sort = "a-z", inline = true, pad = true }
 
 [[embed.field]]
+name = "TCN Hub"
+value = "Join us in the official TCN hub to ask questions about the network, talk to other network members, get information on the network and how to apply, and contact observers (admins)! https://discord.gg/FG2wpbywSx"
+
+[[embed.field]]
 name = "Genshin Wizard"
 value = """The TCN is partnered with [Genshin Wizard](https://genshinwizard.com), a multipurpose Genshin Impact Discord bot with a wide array of features to let you view your in-game stats, flex your builds, view build guides and hundreds of high-quality infographics, and more!"""
 
