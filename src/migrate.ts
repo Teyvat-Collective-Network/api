@@ -35,7 +35,7 @@ const skip = Bun.env.SKIP?.split(/\s+/) ?? [];
 async function run(key: string, fn: any, drop?: string[]) {
     if ((!toRun || toRun.includes(key)) && !skip.includes(key)) {
         logger.info(`replicating ${key}`);
-        for (const name of drop ?? []) await db[name].drop();
+        for (const name of drop ?? []) await db[name].deleteMany();
         await fn();
     }
 }
