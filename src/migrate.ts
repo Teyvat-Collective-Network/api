@@ -284,7 +284,7 @@ await run("global_filter", async () => {
             .map((x) => x.split(";")[0]);
 
         for (const item of items)
-            if ((await db.global_filter.countDocuments({ match: item })) > 0)
+            if ((await db.global_filter.countDocuments({ match: item })) === 0)
                 await db.global_filter.insertOne({
                     id: await autoinc("global/filter"),
                     match: item,
