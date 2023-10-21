@@ -331,14 +331,14 @@ await run("global_messages", async () => {
             instances: entry.mirrors.map((x: any) => ({ channel: x.channel, message: x.message })),
         });
 
-        if (gmi % 50000 === 0) logger.info(`${gmi} / ${gmcount}`);
+        if (gmi % 50000 === 0) {
+            logger.info(`${gmi} / ${gmcount}`);
+            await db.global_messages.insertMany(gmToInsert);
+            gmToInsert.splice(0, gmToInsert.length);
+        }
     }
 
-    logger.info("inserting...");
-    while (gmToInsert.length > 0) {
-        await db.global_messages.insertMany(gmToInsert.splice(0, 10000));
-        logger.info(`${gmToInsert.length} left`);
-    }
+    if (gmToInsert.length > 0) await db.global_messages.insertMany(gmToInsert);
 });
 
 // global_users
