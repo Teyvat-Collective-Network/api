@@ -597,7 +597,16 @@ await run("rolesync", async () => {
         } else if (entry.type === 1)
             await db.rolesync.updateOne(
                 { guild: entry.guild, "apiToRole.value": { $ne: entry.api } },
-                { $push: { apiToRole: { type: "role", value: entry.api, guild: undefined, roles: [entry.discord] } } },
+                {
+                    $push: {
+                        apiToRole: {
+                            type: ["observer", "owner", "advisor", "voter", "council", "staff"].includes(entry.api) ? "position" : "role",
+                            value: entry.api,
+                            guild: undefined,
+                            roles: [entry.discord],
+                        },
+                    },
+                },
                 { upsert: false },
             );
         else if (entry.type === 2) await db.rolesync.updateOne({ guild: entry.guild }, { $addToSet: { roleToStaff: entry.discord } }, { upsert: false });
