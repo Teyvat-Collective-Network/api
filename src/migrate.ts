@@ -632,7 +632,7 @@ await run("vote_records", async () => {
 
 // votes
 await run("votes", async () => {
-    const pollCache: Record<number, any> = (await db.polls.find().toArray()).map((poll: any) => [poll.id, poll]);
+    const pollCache: Record<number, any> = Object.fromEntries((await db.polls.find().toArray()).map((poll: any) => [poll.id, poll]));
 
     for (const entry of await src["TCN-site"].poll_votes.find().toArray())
         if (pollCache[entry.id])
