@@ -584,19 +584,24 @@ await run("rolesync", async () => {
         );
 
         if (entry.type === 0)
-            await db.rolesync.updateOne(
-                { guild: entry.guild, "apiToRole.guild": { $ne: entry.api } },
-                { $push: { apiToRole: { type: "position", value: entry.meta?.councilOnly ? "council" : "staff", guild: entry.api, roles: [entry.discord] } } },
-                { upsert: false },
-            );
-        else if (entry.type === 1)
-            await db.rolesync.updateOne(
-                { guild: entry.guild, "apiToRole.value": { $ne: entry.api } },
-                { $push: { apiToRole: { type: "role", value: entry.api, guild: undefined, roles: [entry.discord] } } },
-                { upsert: false },
-            );
-        else if (entry.type === 2) await db.rolesync.updateOne({ guild: entry.guild }, { $addToSet: { roleToStaff: entry.discord } }, { upsert: false });
-        else if (entry.type === 3) "nothing to import";
+            if ((await src["TCN-api"].guilds.countDocuments({ id: entry.api })) > 0)
+                await db.rolesync.updateOne(
+                    { guild: entry.guild, "apiToRole.guild": { $ne: entry.api } },
+                    {
+                        $push: {
+                            apiToRole: { type: "position", value: entry.meta?.councilOnly ? "council" : "staff", guild: entry.api, roles: [entry.discord] },
+                        },
+                    },
+                    { upsert: false },
+                );
+            else if (entry.type === 1)
+                await db.rolesync.updateOne(
+                    { guild: entry.guild, "apiToRole.value": { $ne: entry.api } },
+                    { $push: { apiToRole: { type: "role", value: entry.api, guild: undefined, roles: [entry.discord] } } },
+                    { upsert: false },
+                );
+            else if (entry.type === 2) await db.rolesync.updateOne({ guild: entry.guild }, { $addToSet: { roleToStaff: entry.discord } }, { upsert: false });
+            else if (entry.type === 3) "nothing to import";
     }
 });
 
