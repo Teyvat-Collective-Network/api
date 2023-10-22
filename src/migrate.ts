@@ -227,6 +227,7 @@ await run("banshare_settings", async () => {
                     daedalus: entry.daedalus ?? false,
                     blockdms: entry.suppress_dm_scams ?? false,
                     logs: [],
+                    channel: null,
                 },
             },
             { upsert: true },
