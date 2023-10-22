@@ -652,6 +652,7 @@ await run("votes", async () => {
                                       ...entry.rankings.map((x: string, i: number) => [x, i + 1]),
                                   ])
                                 : undefined,
+                        selected: entry.selected ?? undefined,
                     },
                 },
                 { upsert: true },
