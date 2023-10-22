@@ -333,7 +333,7 @@ export default (app: App) =>
                     )
                         throw new APIError(400, codes.NOT_MODIFIED, "No changes were made.");
 
-                    rolesync({ guild: id });
+                    rolesync();
 
                     if (!user!.guilds[id]?.owner)
                         audit(user, AuditLogAction.ROLESYNC_EDIT, {

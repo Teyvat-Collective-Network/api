@@ -97,7 +97,7 @@ export default (app: App) =>
 
                     await db.users.updateOne({ id }, { $set }, { upsert: true });
                     audit(user, body.observer ? AuditLogAction.USERS_PROMOTE : AuditLogAction.USERS_DEMOTE, { id }, reason);
-                    rolesync({ user: id });
+                    rolesync();
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -147,7 +147,7 @@ export default (app: App) =>
                 async ({ params: { id, role }, reason, user }) => {
                     await db.users.updateOne({ id }, { $addToSet: { roles: role } }, { upsert: true });
                     audit(user, AuditLogAction.USERS_ROLES_ADD, { id, role }, reason);
-                    rolesync({ user: id });
+                    rolesync();
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -171,7 +171,7 @@ export default (app: App) =>
                 async ({ params: { id, role }, reason, user }) => {
                     await db.users.updateOne({ id }, { $pull: { roles: role } }, { upsert: true });
                     audit(user, AuditLogAction.USERS_ROLES_REMOVE, { id, role }, reason);
-                    rolesync({ user: id });
+                    rolesync();
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("users/write")],
@@ -201,7 +201,7 @@ export default (app: App) =>
                     });
 
                     audit(user, AuditLogAction.USERS_ROLES_SET, { id, guild, add, remove }, reason);
-                    rolesync({ guild, user: id });
+                    rolesync();
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -233,7 +233,7 @@ export default (app: App) =>
                     await data.getGuild(guild);
                     await db.guilds.updateOne({ id: guild }, { $addToSet: { [`users.${id}.roles`]: role } });
                     audit(user, AuditLogAction.USERS_ROLES_ADD, { id, role, guild }, reason);
-                    rolesync({ guild, user: id });
+                    rolesync();
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -262,7 +262,7 @@ export default (app: App) =>
                     await data.getGuild(guild);
                     await db.guilds.updateOne({ id: guild }, { $pull: { [`users.${id}.roles`]: role } });
                     audit(user, AuditLogAction.USERS_ROLES_REMOVE, { id, role, guild }, reason);
-                    rolesync({ guild, user: id });
+                    rolesync();
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
@@ -290,7 +290,7 @@ export default (app: App) =>
                 async ({ body: { staff }, params: { id, guild }, reason, user }) => {
                     await db.guilds.updateOne({ id: guild }, { $set: { [`users.${id}.staff`]: staff } });
                     audit(user, staff ? AuditLogAction.USERS_STAFF_ADD : AuditLogAction.USERS_STAFF_REMOVE, { id, guild }, reason);
-                    rolesync({ guild, user: id });
+                    rolesync();
                 },
                 {
                     beforeHandle: [isSignedIn, ({ params: { guild }, user }) => isOwner(guild, user!), hasScope("users/write")],
