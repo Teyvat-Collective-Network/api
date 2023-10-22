@@ -215,29 +215,32 @@ await run("autosync", async () => {
 // banshare_settings
 await run("banshare_settings", async () => {
     for (const entry of await src["TCN-banshare"].settings.find().toArray())
+        await db.banshare_settings.insertOne({
+            guild: entry.guild,
+            autoban:
+                ({ all: 0b11111111, med: 0b10111011, crit: 0b10011001 }[entry.autoban as string] ?? 0b10001000) &
+                (entry.autoban_dm_scams ? 0b11111111 : 0b01110111) &
+                ({ all: 0b11111111, med: 0b10111111, crit: 0b10011111, none: 0b10001111 }[entry.autoban_member as string] ?? 0b11111111),
+            nobutton: entry.no_button ?? false,
+            daedalus: entry.daedalus ?? false,
+            blockdms: entry.suppress_dm_scams ?? false,
+            logs: [],
+            channel: null,
+        });
+
+    for (const entry of await src["TCN-banshare"].logging.find().toArray())
         await db.banshare_settings.updateOne(
             { guild: entry.guild },
-            {
-                $set: {
-                    autoban:
-                        ({ all: 0b11111111, med: 0b10111011, crit: 0b10011001 }[entry.autoban as string] ?? 0b10001000) &
-                        (entry.autoban_dm_scams ? 0b11111111 : 0b01110111) &
-                        ({ all: 0b11111111, med: 0b10111111, crit: 0b10011111, none: 0b10001111 }[entry.autoban_member as string] ?? 0b11111111),
-                    nobutton: entry.no_button ?? false,
-                    daedalus: entry.daedalus ?? false,
-                    blockdms: entry.suppress_dm_scams ?? false,
-                    logs: [],
-                    channel: null,
-                },
-            },
+            { $addToSet: { logs: entry.channel }, $setOnInsert: { autoban: 0, nobutton: false, daedalus: false, blockdms: false, channel: null } },
             { upsert: true },
         );
 
-    for (const entry of await src["TCN-banshare"].logging.find().toArray())
-        await db.banshare_settings.updateOne({ guild: entry.guild }, { $addToSet: { logs: entry.channel } }, { upsert: true });
-
     for (const entry of await src["TCN-banshare"].channels.find().toArray())
-        await db.banshare_settings.updateOne({ guild: entry.guild }, { $set: { channel: entry.channel } }, { upsert: true });
+        await db.banshare_settings.updateOne(
+            { guild: entry.guild },
+            { $set: { channel: entry.channel }, $setOnInsert: { autoban: 0, nobutton: false, daedalus: false, blockdms: false, logs: [] } },
+            { upsert: true },
+        );
 });
 
 // banshares
