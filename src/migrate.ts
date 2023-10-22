@@ -206,7 +206,7 @@ await run("autosync", async () => {
         else
             await db.autosync.updateOne(
                 { guild: entry.guild },
-                { $set: Object.fromEntries(Object.entries(entry).filter(([x]) => ["channel", "webhook", "message", "repost"].includes(x))) },
+                { $set: Object.fromEntries(Object.entries(entry.instances[0]).filter(([x]) => ["channel", "webhook", "message", "repost"].includes(x))) },
                 { upsert: true },
             );
     // we do not copy the template because it is in a different language
