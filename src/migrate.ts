@@ -559,7 +559,7 @@ await run("polls", async () => {
                     question: entry.mode === "proposal" || entry.mode === "selection" ? entry.question : null,
                     preinduct: entry.mode === "induction" ? entry.preinduct : null,
                     server: entry.mode === "induction" ? entry.server : null,
-                    wave: entry.mode === "election" ? entry.wave : null,
+                    wave: entry.mode === "election" ? entry.wave ?? +entry.question.match(/\d+/)![0] : null,
                     seats: entry.mode === "election" ? entry.seats : null,
                     candidates: entry.mode === "election" ? entry.candidates : null,
                     min: entry.mode === "selection" ? entry.min : null,
