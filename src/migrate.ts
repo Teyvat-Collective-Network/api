@@ -634,7 +634,10 @@ await run("vote_records", async () => {
 await run("votes", async () => {
     const pollCache: Record<number, any> = Object.fromEntries((await src["TCN-site"].polls.find().toArray()).map((poll: any) => [poll.id, poll]));
 
-    for (const entry of await src["TCN-site"].poll_votes.find().toArray())
+    console.log(pollCache);
+
+    for (const entry of await src["TCN-site"].poll_votes.find().toArray()) {
+        console.log(entry);
         if (pollCache[entry.id])
             await db.votes.updateOne(
                 { poll: entry.id, user: entry.user },
@@ -656,6 +659,7 @@ await run("votes", async () => {
                 },
                 { upsert: true },
             );
+    }
 });
 
 logger.info("DONE!");
