@@ -634,23 +634,20 @@ await run("vote_records", async () => {
 await run("votes", async () => {
     const pollCache: Record<number, any> = Object.fromEntries((await src["TCN-site"].polls.find().toArray()).map((poll: any) => [poll.id, poll]));
 
-    console.log(pollCache);
-
-    for (const entry of await src["TCN-site"].poll_votes.find().toArray()) {
-        console.log(entry);
-        if (pollCache[entry.id])
+    for (const entry of await src["TCN-site"].poll_votes.find().toArray())
+        if (pollCache[entry.poll])
             await db.votes.updateOne(
-                { poll: entry.id, user: entry.user },
+                { poll: entry.poll, user: entry.user },
                 {
                     $set: {
-                        mode: pollCache[entry.id].mode,
+                        mode: pollCache[entry.poll].mode,
                         abstain: entry.abstain ?? false,
                         yes: entry.yes ?? undefined,
                         verdict: entry.verdict ? { "induct-now": "induct", "induct-later": "preinduct" }[entry.verdict as string] ?? entry.verdict : undefined,
                         candidates:
-                            pollCache[entry.id].mode === "election" && !entry.abstain
+                            pollCache[entry.poll].mode === "election" && !entry.abstain
                                 ? Object.fromEntries([
-                                      ...pollCache[entry.id].candidates.map((x: string) => [x, 0]),
+                                      ...pollCache[entry.poll].candidates.map((x: string) => [x, 0]),
                                       ...(entry.countered ?? []).map((x: string) => [x, -1]),
                                       ...entry.rankings.map((x: string, i: number) => [x, i + 1]),
                                   ])
@@ -659,7 +656,6 @@ await run("votes", async () => {
                 },
                 { upsert: true },
             );
-    }
 });
 
 logger.info("DONE!");
