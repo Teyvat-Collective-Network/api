@@ -14,6 +14,7 @@ import observationRecords from "./v1/observation-records.js";
 import polls from "./v1/polls.js";
 import root from "./v1/root.js";
 import shareLinks from "./v1/share-links.js";
+import shortLinks from "./v1/short-links.js";
 import submit from "./v1/submit.js";
 import users from "./v1/users.js";
 
@@ -35,6 +36,7 @@ export default (app: App) =>
             .use(polls)
             .use(root)
             .use(shareLinks)
+            .use(shortLinks)
             .use(submit)
             .use(users),
     );
