@@ -38,6 +38,9 @@ export default (app: App) =>
                     if (!skipChecks) idList = ids.trim().split(/\s+/);
                     if (idList.includes(user!.id)) throw new APIError(400, codes.INVALID_BODY, "You cannot banshare yourself.");
 
+                    if (`${evidence} ${reason}`.match(/cdn\.discordapp\.com|media\.discordapp\.net/))
+                        throw new APIError(400, codes.INVALID_BODY, "Discord media links are not allowed.");
+
                     const serverName = (await data.getGuild(server)).name;
 
                     const req = await bot(bearer!, `!POST /banshares`, {
