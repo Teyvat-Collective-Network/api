@@ -28,6 +28,7 @@ enum codes {
     MISSING_POLL,
     MISSING_VOTE,
     MISSING_GLOBAL_FILTER_ENTRY,
+    MISSING_SHARE_LINK,
 }
 
 export default codes;
