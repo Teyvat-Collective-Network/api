@@ -11,10 +11,10 @@ export default (app: App) =>
             .get(
                 "/:id",
                 async ({ params: { id } }) => {
-                    const doc = await db.share_links.findOneAndUpdate({ id }, { $set: { time: Date.now() } });
-                    if (!doc) throw new APIError(404, codes.MISSING_SHARE_LINK, `No share link exists with ID ${id}.`);
+                    const doc = await db.short_links.findOne({ id });
+                    if (!doc) throw new APIError(404, codes.MISSING_SHORT_LINK, `No short link exists with ID ${id}.`);
 
-                    return doc.content;
+                    return doc.url;
                 },
                 {
                     detail: {
@@ -41,7 +41,7 @@ export default (app: App) =>
                         return { id: input };
                     }
 
-                    const doc = await db.share_links.findOneAndUpdate({ content: body }, { $set: { content: body } });
+                    const doc = await db.short_links.findOneAndUpdate({ url: body }, { $set: { url: body } });
                     if (doc) return { id: doc.id };
 
                     while (true) {
@@ -50,7 +50,7 @@ export default (app: App) =>
                             .map(() => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 62)])
                             .join("");
 
-                        const doc = await db.share_links.findOneAndUpdate({ id }, { $setOnInsert: { content: body } }, { upsert: true });
+                        const doc = await db.short_links.findOneAndUpdate({ id }, { $setOnInsert: { url: body } }, { upsert: true });
                         if (!doc) return { id };
                     }
                 },
