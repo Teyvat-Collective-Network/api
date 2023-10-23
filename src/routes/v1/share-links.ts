@@ -11,9 +11,9 @@ export default (app: App) =>
         app
             .get(
                 "/:id",
-                async ({ params: { id } }) => {
+                async ({ params: { id }, user }) => {
                     const doc = await db.share_links.findOneAndUpdate({ id }, { $set: { time: Date.now() } });
-                    if (!doc) throw new APIError(404, codes.MISSING_SHARE_LINK, `No share link exists with ID ${id}.`);
+                    if (!doc || (doc.secret && !user?.observer)) throw new APIError(404, codes.MISSING_SHARE_LINK, `No share link exists with ID ${id}.`);
 
                     return doc.content;
                 },
@@ -34,8 +34,12 @@ export default (app: App) =>
             )
             .post(
                 "/",
-                async ({ body }) => {
-                    const doc = await db.share_links.findOneAndUpdate({ content: body }, { $set: { time: Date.now() } });
+                async ({ body, query: { secret: _secret }, user }) => {
+                    const secret = _secret === "true";
+
+                    if (secret && !user?.observer) throw new APIError(403, codes.FORBIDDEN, "Only observers may create secret share links.");
+
+                    const doc = await db.share_links.findOneAndUpdate({ content: body, secret }, { $set: { time: Date.now() } });
                     if (doc) return { id: doc.id };
 
                     while (true) {
@@ -44,7 +48,12 @@ export default (app: App) =>
                             .map(() => words[Math.floor(Math.random() * words.length)])
                             .join("-");
 
-                        const doc = await db.share_links.findOneAndUpdate({ id }, { $setOnInsert: { content: body, time: Date.now() } }, { upsert: true });
+                        const doc = await db.share_links.findOneAndUpdate(
+                            { id },
+                            { $setOnInsert: { content: body, secret, time: Date.now() } },
+                            { upsert: true },
+                        );
+
                         if (!doc) return { id };
                     }
                 },
@@ -58,6 +67,9 @@ export default (app: App) =>
                             Post data and get a share link ID.
                         `),
                     },
+                    query: t.Object({
+                        secret: t.Optional(t.String({ description: "If true, this data becomes observer-only. Observer-only." })),
+                    }),
                     response: t.Object({
                         id: t.String({ description: "The ID of the created share link." }),
                     }),
