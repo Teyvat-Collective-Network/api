@@ -74,11 +74,10 @@ export const app = new Elysia()
         if (reason?.length === 0 || (reason && reason.length > 256)) throw new APIError(400, codes.INVALID_BODY, "Audit log reason must be 1-256 characters");
         return { reason };
     })
-    .derive(() => ({ log: logger }))
-    .onBeforeHandle(({ bearer, body, internal, log, path, request, user }) => {
+    .onBeforeHandle(({ bearer, body, internal, path, request, user }) => {
         const token = bearer?.split(".")[1];
 
-        log.info(
+        logger.info(
             { location: "dd024f32-1c79-47bb-a7ca-e9858f247c80", token },
             `${request.method} ${path} [${user?.id ?? "anon"}]${internal ? " [internal]" : ""}`,
         );
