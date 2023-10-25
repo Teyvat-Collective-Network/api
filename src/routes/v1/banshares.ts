@@ -551,7 +551,7 @@ export default (app: App) =>
             .get(
                 "/guilds",
                 async () => {
-                    return (await db.banshare_settings.find().toArray()) as unknown[] as BanshareSettings[];
+                    return ((await db.banshare_settings.find().toArray()) as unknown[] as BanshareSettings[]).map((x) => formatBanshareSettings(x));
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("banshares/manage")],
