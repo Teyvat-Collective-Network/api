@@ -400,7 +400,7 @@ export default (app: App) =>
             .get(
                 "/settings/:guild",
                 async ({ params: { guild } }) => {
-                    const entry = ((await db.banshare_settings.findOne({ guild })) ?? {}) as unknown as Partial<BanshareSettings>;
+                    const entry = ((await db.banshare_settings.findOne({ guild })) ?? { guild }) as unknown as Partial<BanshareSettings>;
                     return formatBanshareSettings(entry);
                 },
                 {
