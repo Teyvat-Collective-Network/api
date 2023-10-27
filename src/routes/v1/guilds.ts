@@ -238,7 +238,7 @@ export default (app: App) =>
                     return doc ?? { roleToStaff: [], staffToRole: [], roleToApi: {}, apiToRole: [] };
                 },
                 {
-                    beforeHandle: [isSignedIn, ({ params: { id }, user }) => isOwner(id, user!, undefined, true), hasScope("rolesync/read")],
+                    beforeHandle: [isSignedIn, ({ params: { id }, user }) => isOwner(id, user!, undefined, { allowHqAndHub: true }), hasScope("rolesync/read")],
                     detail: {
                         tags: ["V1"],
                         summary: "Get the rolesync configuration for a guild.",
@@ -345,7 +345,7 @@ export default (app: App) =>
                 {
                     beforeHandle: [
                         isSignedIn,
-                        ({ params: { id }, user }) => isOwner(id, user!, undefined, true),
+                        ({ params: { id }, user }) => isOwner(id, user!, undefined, { allowHqAndHub: true }),
                         hasScope("rolesync/write"),
                         ratelimitCheck("rolesync/write", 30000, 3),
                     ],

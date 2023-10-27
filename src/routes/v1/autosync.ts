@@ -50,7 +50,11 @@ export default (app: App) =>
                     };
                 },
                 {
-                    beforeHandle: [isSignedIn, ({ internal, params: { guild }, user }) => isOwner(guild, user!, internal, true), hasScope("autosync/read")],
+                    beforeHandle: [
+                        isSignedIn,
+                        ({ internal, params: { guild }, user }) => isOwner(guild, user!, internal, { allowHqAndHub: true, allowAdvisor: true }),
+                        hasScope("autosync/read"),
+                    ],
                     detail: {
                         tags: ["V1"],
                         summary: "Get a server's autosync configuration.",
@@ -74,7 +78,11 @@ export default (app: App) =>
                     bot(bearer!, `POST /autosync/${guild}`);
                 },
                 {
-                    beforeHandle: [isSignedIn, ({ internal, params: { guild }, user }) => isOwner(guild, user!, internal, true), hasScope("autosync/write")],
+                    beforeHandle: [
+                        isSignedIn,
+                        ({ internal, params: { guild }, user }) => isOwner(guild, user!, internal, { allowHqAndHub: true, allowAdvisor: true }),
+                        hasScope("autosync/write"),
+                    ],
                     body: t.Object(
                         Object.fromEntries(
                             Object.entries(schemas.autosync.properties)

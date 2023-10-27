@@ -58,14 +58,14 @@ export async function guildExists(id: string) {
     await data.getGuild(id);
 }
 
-export async function isOwner(id: string, user: User, internal?: boolean, allowHqAndHub?: boolean) {
+export async function isOwner(id: string, user: User, internal?: boolean, options?: { allowHqAndHub?: boolean; allowAdvisor?: boolean }) {
     let ok = false;
 
-    if (allowHqAndHub && (id === Bun.env.HQ || id === Bun.env.HUB)) {
+    if (options?.allowHqAndHub && (id === Bun.env.HQ || id === Bun.env.HUB)) {
         ok = user.observer;
     } else {
         const guild = await data.getGuild(id);
-        ok = user.observer || guild.owner === user.id;
+        ok = user.observer || guild.owner === user.id || (!!options?.allowAdvisor && guild.advisor === user.id);
     }
 
     if (!ok)
