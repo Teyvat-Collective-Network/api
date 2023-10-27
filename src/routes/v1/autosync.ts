@@ -17,7 +17,14 @@ export default (app: App) =>
             .get(
                 "/",
                 async () => {
-                    return (await db.autosync.find().toArray()) as unknown[] as Autosync[];
+                    return ((await db.autosync.find().toArray()) as unknown[] as Autosync[]).map((doc) => ({
+                        guild: doc.guild,
+                        template: doc.template ?? defaultTemplate,
+                        channel: doc.channel ?? null,
+                        webhook: doc.webhook ?? null,
+                        message: doc.message ?? null,
+                        repost: doc.repost ?? false,
+                    }));
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("autosync/read")],
