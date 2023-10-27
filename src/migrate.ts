@@ -1,8 +1,9 @@
 import { ChannelType, Client, Events } from "discord.js";
 import { Collection, Db, Document } from "mongodb";
-import audit, { AuditLogAction } from "./lib/audit.js";
+import { AuditLogAction } from "./lib/audit.js";
 import db, { autoinc, client, connect } from "./lib/db.js";
 import logger from "./lib/logger.js";
+import { stripMongoIds } from "./lib/utils.js";
 
 await connect();
 
@@ -160,23 +161,17 @@ await run(
                         : undefined
                 ) as [AuditLogAction, any] | undefined;
 
-                if (data)
-                    await audit(
-                        {
-                            advisor: false,
-                            council: false,
-                            guilds: {},
-                            id: "1".repeat(18),
-                            observer: false,
-                            observerSince: 0,
-                            owner: false,
-                            roles: [],
-                            staff: false,
-                            token: "N/A",
-                            voter: false,
-                        },
-                        ...data,
-                        [
+                if (data) {
+                    const uuid = await autoinc("audit-logs");
+
+                    await db.audit_logs.insertOne({
+                        uuid,
+                        time: new Date(entry.year, entry.month - 1, entry.date).getTime(),
+                        user: "1".repeat(18),
+                        token: "N/A",
+                        action: data[0],
+                        data: stripMongoIds(data[1]),
+                        reason: [
                             entry.notes ||
                                 {
                                     "term-end": "Regular end of term.",
@@ -192,7 +187,8 @@ await run(
                         ]
                             .filter((x) => x)
                             .join(" "),
-                    );
+                    });
+                }
             }
     },
     ["audit_logs"],
