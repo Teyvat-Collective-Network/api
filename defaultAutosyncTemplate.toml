@@ -15,7 +15,7 @@ A network of high-quality Genshin Impact character-mains style servers that focu
 image = "https://i.imgur.com/U9Wqlug.png"
 
 [[embed.field]]
-inject = { source = "tcn/partners", group = "element", sort = "a-z", inline = true, pad = true }
+inject = { source = "tcn/partners", group = "element", sort = "a-z", inline = true, pad = true, bullet = "➜" }
 
 [[embed.field]]
 name = "TCN Hub"
