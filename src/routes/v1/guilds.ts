@@ -186,6 +186,8 @@ export default (app: App) =>
 
                     await db.guilds.deleteOne({ id });
                     await db.autosync.deleteMany({ guild: id });
+                    await db.rolesync.deleteMany({ guild: id });
+                    await db.rolesync.updateMany({}, { $pull: { apiToRole: { guild: id } } as any });
 
                     audit(user, AuditLogAction.GUILDS_DELETE, guild, reason);
                     rolesync();
