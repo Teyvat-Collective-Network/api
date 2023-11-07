@@ -78,6 +78,7 @@ export default (app: App) =>
                     audit(user, AuditLogAction.GUILDS_CREATE, createData, reason);
                     rolesync();
                     bot(bearer!, `POST /autosync`);
+                    bot(bearer!, `POST /update-channels?members=true&votes=true`);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -152,6 +153,7 @@ export default (app: App) =>
                     audit(user, AuditLogAction.GUILDS_EDIT, { id, name: body.name ?? doc.name, changes: changelist }, reason);
                     if ("owner" in $set || "advisor" in $set || "advisor" in $unset || "delegated" in $set) rolesync();
                     bot(bearer!, `POST /autosync`);
+                    if (!doc.advisor !== (body.advisor === null)) bot(bearer!, `POST /update-channels?members=true`);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/write")],
@@ -192,6 +194,7 @@ export default (app: App) =>
                     audit(user, AuditLogAction.GUILDS_DELETE, guild, reason);
                     rolesync();
                     bot(bearer!, `POST /autosync`);
+                    bot(bearer!, `POST /update-channels?members=true&votes=true`);
                 },
                 {
                     beforeHandle: [isSignedIn, isObserver, hasScope("guilds/delete")],
