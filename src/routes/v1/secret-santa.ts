@@ -1,7 +1,7 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
 import bot from "../../lib/bot.js";
-import { isSecretSantaAdmin, isSignedIn } from "../../lib/checkers.js";
+import { isObserver, isSecretSantaAdmin, isSignedIn } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import db from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
@@ -60,7 +60,7 @@ export default (app: App) =>
             .post(
                 "/save-data",
                 async ({ body: { info }, user }) => {
-                    if (!["none", "locked-out", "locked-sender", "awaiting-approval"].includes(await getStatus(user))) return;
+                    if ((await getStatus(user)) !== "none") return;
 
                     await db.secret_santa.updateOne({ user: user!.id }, { $set: { info } }, { upsert: true });
                 },
@@ -75,11 +75,9 @@ export default (app: App) =>
                 "/lock-in",
                 async ({ body: { info }, user }) => {
                     const status = await getStatus(user);
-
-                    if (!["none", "locked-out", "locked-sender", "awaiting-approval"].includes(status)) return;
-                    await db.secret_santa.updateOne({ user: user!.id }, { $set: { info } }, { upsert: true });
-
                     if (status !== "none") return new Response(null, { status: 201 });
+
+                    await db.secret_santa.updateOne({ user: user!.id }, { $set: { info } }, { upsert: true });
 
                     const entry = await db.secret_santa.findOneAndUpdate(
                         { status: "pool-free" },
@@ -259,6 +257,36 @@ export default (app: App) =>
                     params: t.Object({
                         id: schemas.snowflake(),
                     }),
+                },
+            )
+            .get(
+                "/admin/admins",
+                async () => {
+                    return ((await db.secret_santa_reviewers.find().toArray()) as unknown as { user: string }[]).map((x) => x.user);
+                },
+                {
+                    beforeHandle: [isSignedIn, isObserver],
+                    response: t.Array(schemas.snowflake()),
+                },
+            )
+            .put(
+                "/admin/admins/:id",
+                async ({ params: { id } }) => {
+                    await db.secret_santa_reviewers.updateOne({ user: id }, { $set: { user: id } }, { upsert: true });
+                },
+                {
+                    beforeHandle: [isSignedIn, isObserver],
+                    params: t.Object({ id: schemas.snowflake() }),
+                },
+            )
+            .delete(
+                "/admin/admins/:id",
+                async ({ params: { id } }) => {
+                    await db.secret_santa_reviewers.deleteOne({ user: id });
+                },
+                {
+                    beforeHandle: [isSignedIn, isObserver],
+                    params: t.Object({ id: schemas.snowflake() }),
                 },
             ),
     );
