@@ -13,6 +13,7 @@ import guilds from "./v1/guilds.js";
 import observationRecords from "./v1/observation-records.js";
 import polls from "./v1/polls.js";
 import root from "./v1/root.js";
+import secretSanta from "./v1/secret-santa.js";
 import shareLinks from "./v1/share-links.js";
 import shortLinks from "./v1/short-links.js";
 import submit from "./v1/submit.js";
@@ -35,6 +36,7 @@ export default (app: App) =>
             .use(observationRecords)
             .use(polls)
             .use(root)
+            .use(secretSanta)
             .use(shareLinks)
             .use(shortLinks)
             .use(submit)

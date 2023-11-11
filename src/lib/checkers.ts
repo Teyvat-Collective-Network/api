@@ -45,6 +45,11 @@ export function isObserver({ internal, user }: any) {
         throw new APIError(403, codes.FORBIDDEN, internal ? "This operation is restricted to observers." : "You must be an observer to access this route.");
 }
 
+export async function isSecretSantaAdmin({ user }: any) {
+    if (!user.observer && (await db.secret_santa_reviewers.countDocuments({ user: user.id })) === 0)
+        throw new APIError(403, codes.FORBIDDEN, "You are not a Secret Santa admin!");
+}
+
 export function isCouncil({ internal, user }: any) {
     if (!user.council)
         throw new APIError(

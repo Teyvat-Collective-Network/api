@@ -195,3 +195,12 @@ export type Autosync = {
     message: string | null;
     repost: boolean;
 };
+
+export type SecretSantaUser = {
+    user: string;
+    status?: "none" | "locked-out" | "locked-sender" | "awaiting-approval" | "pool-free" | "pool-locked" | "limbo" | "done" | "banned";
+    partner?: string;
+    time?: number;
+    info?: string;
+    proof?: string;
+};

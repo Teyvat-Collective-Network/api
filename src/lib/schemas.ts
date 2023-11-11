@@ -358,4 +358,13 @@ export default {
         message: t.Nullable(snowflake("The ID of the message of the current live post.")),
         repost: t.Boolean({ description: "If true, the previous message will be deleted and a new one posted each time instead of editing the existing one." }),
     }),
+    secretSantaUser: t.Object({
+        user: t.String(),
+        status: t.String(),
+        agreed: t.Boolean(),
+        partner: t.Optional(t.String()),
+        time: t.Optional(t.Number()),
+        info: t.Optional(t.String()),
+        proof: t.Optional(t.String()),
+    }),
 };
