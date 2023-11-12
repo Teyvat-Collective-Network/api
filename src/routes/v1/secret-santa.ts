@@ -17,6 +17,17 @@ export default (app: App) =>
     app.group("/secret-santa", (app) =>
         app
             .get(
+                "/is-admin",
+                async ({ user }) => {
+                    if (!user) return false;
+                    if (user.observer) return true;
+                    return (await db.secret_santa_reviewers.countDocuments({ user: user.id })) > 0;
+                },
+                {
+                    response: t.Boolean(),
+                },
+            )
+            .get(
                 "/all",
                 async () => {
                     const users = (await db.secret_santa.find().toArray()) as unknown as SecretSantaUser[];
