@@ -100,7 +100,7 @@ export default (app: App) =>
 
                     await db.secret_santa.updateOne(
                         { user: user!.id },
-                        { $set: { status: "locked-sender", partner: entry.user, time: Date.now() } },
+                        { $set: { status: "locked-sender", partner: entry.user, time: Date.now() + 30 * 60 * 1000 } },
                         { upsert: true },
                     );
 
@@ -239,6 +239,20 @@ export default (app: App) =>
                 },
             )
             .post(
+                "/admin/complete/:id",
+                async ({ params: { id } }) => {
+                    const doc = (await db.secret_santa.findOne({ user: id })) as unknown as SecretSantaUser | null;
+                    if (doc?.status !== "pool-free") throw new APIError(400, codes.INVALID_STATE, "user is not in the unlocked pool");
+                    await db.secret_santa.updateOne({ user: id }, { $set: { status: "done" }, $unset: { partner: 1 } });
+                },
+                {
+                    beforeHandle: [isSignedIn, isSecretSantaAdmin],
+                    params: t.Object({
+                        id: schemas.snowflake(),
+                    }),
+                },
+            )
+            .post(
                 "/admin/retroreject/:id",
                 async ({ params: { id } }) => {
                     const doc = (await db.secret_santa.findOne({ user: id })) as unknown as SecretSantaUser | null;
@@ -258,10 +272,22 @@ export default (app: App) =>
                 "/admin/return/:id",
                 async ({ params: { id } }) => {
                     const doc = (await db.secret_santa.findOne({ user: id })) as unknown as SecretSantaUser | null;
-
                     if (doc?.status !== "done") throw new APIError(400, codes.INVALID_STATE, "user is not in the completed pool");
-
                     await db.secret_santa.updateOne({ user: id }, { $set: { status: "pool-free" }, $unset: { partner: 1 } });
+                },
+                {
+                    beforeHandle: [isSignedIn, isSecretSantaAdmin],
+                    params: t.Object({
+                        id: schemas.snowflake(),
+                    }),
+                },
+            )
+            .post(
+                "/admin/unban/:id",
+                async ({ params: { id } }) => {
+                    const doc = (await db.secret_santa.findOne({ user: id })) as unknown as SecretSantaUser | null;
+                    if (doc?.status !== "banned") throw new APIError(400, codes.INVALID_STATE, "user is not unbanned");
+                    await db.secret_santa.updateOne({ user: id }, { $set: { status: "none" }, $unset: { partner: 1 } });
                 },
                 {
                     beforeHandle: [isSignedIn, isSecretSantaAdmin],
