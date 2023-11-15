@@ -168,6 +168,24 @@ export default (app: App) =>
                 },
             )
             .post(
+                "/block-approval",
+                async ({ user }) => {
+                    const doc = (await db.secret_santa.findOne({ user: user!.id })) as unknown as SecretSantaUser | null;
+
+                    if (doc?.status !== "limbo")
+                        throw new APIError(
+                            400,
+                            codes.INVALID_STATE,
+                            "Your gift-giver is no longer awaiting approval. The proof may have been rejected or approved; please check the form for the updated information.",
+                        );
+
+                    if (!doc.partner) throw new APIError(400, codes.INVALID_STATE, "Could not find your gift-giver. Please contact support.");
+
+                    await db.secret_santa.updateOne({ user: doc.partner }, { $set: { locked: true } });
+                },
+                { beforeHandle: [isSignedIn] },
+            )
+            .post(
                 "/admin/add-to-pool/:id",
                 async ({ params: { id } }) => {
                     const doc = (await db.secret_santa.findOne({ user: id })) as unknown as SecretSantaUser;
@@ -201,11 +219,29 @@ export default (app: App) =>
                 },
             )
             .post(
+                "/admin/unlock/:id",
+                async ({ params: { id } }) => {
+                    const doc = (await db.secret_santa.findOne({ user: id })) as unknown as SecretSantaUser | null;
+
+                    if (doc?.status !== "awaiting-approval") throw new APIError(400, codes.INVALID_STATE, "user is not awaiting approval");
+                    if (!doc.locked) throw new APIError(400, codes.INVALID_STATE, "Approval is not blocked.");
+
+                    await db.secret_santa.updateOne({ user: id }, { $set: { locked: false } });
+                },
+                {
+                    beforeHandle: [isSignedIn, isSecretSantaAdmin],
+                    params: t.Object({
+                        id: schemas.snowflake(),
+                    }),
+                },
+            )
+            .post(
                 "/admin/approve/:id",
                 async ({ params: { id }, user }) => {
                     const doc = (await db.secret_santa.findOne({ user: id })) as unknown as SecretSantaUser | null;
 
                     if (doc?.status !== "awaiting-approval") throw new APIError(400, codes.INVALID_STATE, "user is not awaiting approval");
+                    if (doc.locked) throw new APIError(400, codes.INVALID_STATE, "Approval has been blocked by the recipient.");
 
                     await db.secret_santa.updateOne({ user: id }, { $set: { status: "pool-free" }, $unset: { partner: 1 } });
                     if (doc?.partner) await db.secret_santa.updateOne({ user: doc.partner, partner: id }, { $set: { status: "done" } });
