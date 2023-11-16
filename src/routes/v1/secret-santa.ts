@@ -332,6 +332,21 @@ export default (app: App) =>
                     }),
                 },
             )
+            .put(
+                "/admin/edit-info/:id",
+                async ({ body: { info }, params: { id } }) => {
+                    await db.secret_santa.updateOne({ user: id }, { $set: { info } }, { upsert: true });
+                },
+                {
+                    beforeHandle: [isSignedIn, isSecretSantaAdmin],
+                    body: t.Object({
+                        info: t.String(),
+                    }),
+                    params: t.Object({
+                        id: schemas.snowflake(),
+                    }),
+                },
+            )
             .get(
                 "/admin/admins",
                 async () => {
