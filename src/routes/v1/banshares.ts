@@ -260,15 +260,17 @@ export default (app: App) =>
             )
             .post(
                 "/:message/publish",
-                async ({ bearer, params: { message }, user }) => {
+                async ({ bearer, params: { message }, query: { variant }, user }) => {
                     if ((await db.banshares.countDocuments({ message })) === 0)
                         throw new APIError(404, codes.MISSING_BANSHARE, `No banshare exists with message ID ${message}.`);
 
                     const doc = await db.banshares.findOneAndUpdate({ message, status: "pending" }, { $set: { status: "published", publisher: user!.id } });
                     if (!doc) throw new APIError(400, codes.INVALID_STATE, "That banshare is no longer pending.");
 
+                    await db.global_channels.updateMany({ public: true }, { $addToSet: { bans: doc.idList } });
+
                     try {
-                        await bot(bearer!, `POST /banshares/${message}/publish`);
+                        await bot(bearer!, `POST /banshares/${message}/publish?${new URLSearchParams({ variant: variant ?? "" })}`);
                     } catch (error) {
                         await db.banshares.updateOne({ message }, { $set: { status: "pending" }, $unset: { publisher: 0 } });
                         throw error;
@@ -292,6 +294,14 @@ export default (app: App) =>
                     },
                     params: t.Object({
                         message: schemas.snowflake("The ID of the message of the banshare."),
+                    }),
+                    query: t.Object({
+                        variant: t.Optional(
+                            t.String({
+                                description:
+                                    "`global-ban` will ban from global chat. Anything else does nothing for now, but assume the empty string is the only variant that will always do nothing else.",
+                            }),
+                        ),
                     }),
                 },
             )
