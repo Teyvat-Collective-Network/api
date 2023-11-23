@@ -267,7 +267,7 @@ export default (app: App) =>
                     const doc = await db.banshares.findOneAndUpdate({ message, status: "pending" }, { $set: { status: "published", publisher: user!.id } });
                     if (!doc) throw new APIError(400, codes.INVALID_STATE, "That banshare is no longer pending.");
 
-                    await db.global_channels.updateMany({ public: true }, { $addToSet: { bans: doc.idList } });
+                    if (variant === "global-ban") await db.global_channels.updateMany({ public: true }, { $addToSet: { bans: { $each: doc.idList } as any } });
 
                     try {
                         await bot(bearer!, `POST /banshares/${message}/publish?${new URLSearchParams({ variant: variant ?? "" })}`);
