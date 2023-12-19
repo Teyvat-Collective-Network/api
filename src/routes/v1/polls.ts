@@ -235,7 +235,7 @@ export default (app: App) =>
                             if (invalid.length > 0) throw new APIError(400, codes.INVALID_BODY, `Invalid candidate(s) ranked: ${invalid.join(", ")}`);
 
                             if (user!.id in body.candidates) throw new APIError(400, codes.INVALID_BODY, `Do not rank yourself in elections.`);
-                            body.candidates[user!.id] = 0;
+                            if (poll.candidates.includes(user!.id)) body.candidates[user!.id] = 0;
 
                             const missing = poll.candidates.filter((x) => !(x in body.candidates));
                             if (missing.length > 0) throw new APIError(400, codes.INVALID_BODY, `Missing candidate(s) from rankings: ${missing.join(", ")}.`);
