@@ -3,6 +3,7 @@ import { isObserver, isOwner } from "./checkers.js";
 import codes from "./codes.js";
 import db from "./db.js";
 import { APIError } from "./errors.js";
+import logger from "./logger.js";
 import { BanshareSettings, User } from "./types.js";
 
 export function formatBanshareSettings(entry: Partial<BanshareSettings>): BanshareSettings {
@@ -18,6 +19,7 @@ export function formatBanshareSettings(entry: Partial<BanshareSettings>): Bansha
 }
 
 export async function checkOwnership({ internal, params: { guild }, user }: { internal?: boolean; params: { guild: string }; user?: User }) {
+    logger.info({ internal, guild, user: user!.id }, "18b480bf-4ab3-4843-b0ab-b9f974375f4f Checking ownership");
     if (guild === Bun.env.HUB) isObserver({ internal, user });
     else if ((await db.guilds.countDocuments({ id: guild })) === 0)
         throw new APIError(404, codes.MISSING_GUILD, internal ? "This guild is not in the TCN." : `No guild exists with ID ${guild}.`);
@@ -25,6 +27,7 @@ export async function checkOwnership({ internal, params: { guild }, user }: { in
 }
 
 export async function checkBansharePermissions({ internal, params: { guild }, user }: { internal?: boolean; params: { guild: string }; user?: User }) {
+    logger.info({ internal, guild, user: user!.id }, "e375f1af-35b5-48a1-8f5d-30a23d58447c Checking banshare permissions");
     if (guild === Bun.env.HUB) isObserver({ internal, user });
     else if ((await db.guilds.countDocuments({ id: guild })) === 0)
         throw new APIError(404, codes.MISSING_GUILD, internal ? "This guild is not in the TCN." : `No guild exists with ID ${guild}.`);

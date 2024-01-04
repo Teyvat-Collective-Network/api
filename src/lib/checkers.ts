@@ -3,6 +3,7 @@ import data from "./data.js";
 import db from "./db.js";
 import { APIError } from "./errors.js";
 import { DurationStyle, unparseDuration } from "./format.js";
+import logger from "./logger.js";
 import { User } from "./types.js";
 
 setInterval(async () => {
@@ -41,11 +42,15 @@ export function isSignedIn({ internal, user }: any) {
 }
 
 export function isObserver({ internal, user }: any) {
+    logger.info({ internal, user: user!.id }, "c737af3b-8e1c-417b-8873-920c68e56e48 Checking observer status");
+
     if (!user.observer)
         throw new APIError(403, codes.FORBIDDEN, internal ? "This operation is restricted to observers." : "You must be an observer to access this route.");
 }
 
 export function isCouncil({ internal, user }: any) {
+    logger.info({ internal, user: user!.id }, "18a59db8-5c28-4bfd-8ea7-106f12d43b3c Checking council membership status");
+
     if (!user.council)
         throw new APIError(
             403,
@@ -59,6 +64,8 @@ export async function guildExists(id: string) {
 }
 
 export async function isOwner(id: string, user: User, internal?: boolean, options?: { allowHqAndHub?: boolean; allowAdvisor?: boolean }) {
+    logger.info({ internal, guild: id, user: user.id }, "b7b404f7-07aa-46f7-8ae3-4ef72f2c2a76 Checking guild ownership");
+
     let ok = false;
 
     if (options?.allowHqAndHub && (id === Bun.env.HQ || id === Bun.env.HUB)) {

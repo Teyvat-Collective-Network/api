@@ -1,5 +1,6 @@
 import jwt from "@elysiajs/jwt";
 import Elysia, { t } from "elysia";
+import logger from "./logger.js";
 import schemas from "./schemas.js";
 import { broadcast } from "./websockets.js";
 
@@ -8,6 +9,7 @@ export default new Elysia()
     .get(
         "/login/:id",
         async ({ jwt, params: { id }, query: { internal } }) => {
+            logger.info({ internal, user: id }, "a750cebb-36f8-4eaa-9d33-5765aac5249d Signing login token");
             const now = Date.now();
 
             return await jwt.sign({

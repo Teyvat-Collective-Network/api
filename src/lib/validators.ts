@@ -2,11 +2,14 @@ import bot from "./bot.js";
 import codes from "./codes.js";
 import data from "./data.js";
 import { APIError } from "./errors.js";
+import logger from "./logger.js";
 import { Poll } from "./types.js";
 
 type Invite = { code: string; guild: { id: string; name: string }; vanity: boolean; target: boolean };
 
 export async function validateInvite<T extends boolean>(token: string, raw: string, guild?: string, full?: T): Promise<T extends true ? Invite : string> {
+    logger.info({ raw, guild }, "09984fcd-0da3-4c7a-99df-dd60da2d5f86 Validating invite");
+
     const req = await bot(token, `!GET /invites/${encodeURIComponent(raw)}`);
     if (!req.ok) throw new APIError(400, codes.INVALID_INVITE, "That invite does not exist.");
 
@@ -19,6 +22,8 @@ export async function validateInvite<T extends boolean>(token: string, raw: stri
 }
 
 export async function validatePoll(poll: Poll) {
+    logger.info(poll, "f1656cdf-86e2-4e34-b1c0-e36ef2e020e8 Validating poll");
+
     if (poll.dm && poll.duration < 24)
         throw new APIError(400, codes.INVALID_BODY, "DM reminders can only be enabled if more than 24 hours are left on the poll.");
 

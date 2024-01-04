@@ -6,6 +6,7 @@ import logger from "./logger.js";
 const connections: Record<string, Set<ServerWebSocket<unknown>>> = {};
 
 export async function broadcast(topic: string, ...messages: any[][]) {
+    logger.info(messages, `8c9baf1f-0947-4566-85e7-6cbb2f516f17 Broadcasting to \`${topic}\``);
     const texts = messages.map((message) => JSON.stringify([topic, ...message]));
 
     for (const [key, sockets] of Object.entries(connections)) {

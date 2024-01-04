@@ -1,5 +1,6 @@
 import { t } from "elysia";
 import db, { autoinc } from "./db.js";
+import logger from "./logger.js";
 import { User } from "./types.js";
 import { stripMongoIds } from "./utils.js";
 
@@ -56,7 +57,9 @@ export enum AuditLogAction {
 
 export default async function (user: (User & { token: string }) | undefined, action: AuditLogAction, data?: any, reason?: string | null) {
     const uuid = await autoinc("audit-logs");
-    await db.audit_logs.insertOne({ uuid, time: Date.now(), user: user!.id, token: user!.token, action, data: stripMongoIds(data), reason: reason || null });
+    const entry = { uuid, time: Date.now(), user: user!.id, token: user!.token, action, data: stripMongoIds(data), reason: reason || null };
+    await db.audit_logs.insertOne(entry);
+    logger.info(entry, "audit log entry created");
 }
 
 export const requiredError = "Audit log reason is required and must be 1-256 characters.";

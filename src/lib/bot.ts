@@ -11,7 +11,7 @@ export default async function (token: string | null, route: string, body?: any) 
         route = route.slice(1);
     }
 
-    logger.info({ location: "1a959ee3-55c7-41e1-b0c7-6648e5191c9a", body }, `=> BOT: ${route}`);
+    logger.info(body, `1a959ee3-55c7-41e1-b0c7-6648e5191c9a => BOT: ${route}`);
 
     const [method, path] = route.split(" ");
 
