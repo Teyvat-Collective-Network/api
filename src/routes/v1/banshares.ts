@@ -22,7 +22,7 @@ export default (app: App) =>
 
                     const guild = user!.guilds[server];
 
-                    if (!guild || !(guild.owner || guild.advisor || (guild.staff && guild.roles.includes("banshares"))))
+                    if (!guild || !(guild.owner || guild.advisor || guild.staff))
                         throw new APIError(403, codes.FORBIDDEN, "You do not have permissions to submit banshares from that server.");
 
                     if (!skipChecks && !ids.match(/^\s*([1-9][0-9]{16,19}\s+)*[1-9][0-9]{16,19}\s*$/))
@@ -113,10 +113,7 @@ export default (app: App) =>
                         (!internal &&
                             !user!.council &&
                             entry.author !== user!.id &&
-                            !(
-                                ["published", "rescinded"].includes(entry.status) &&
-                                Object.values(user!.guilds).some((x) => x.staff && x.roles.includes("banshares"))
-                            ))
+                            !(["published", "rescinded"].includes(entry.status) && Object.values(user!.guilds).some((x) => x.staff)))
                     )
                         throw new APIError(404, codes.MISSING_BANSHARE, `No banshare exists with message ID ${message}.`);
 
@@ -701,7 +698,7 @@ export default (app: App) =>
             .post(
                 "/report/:message",
                 async ({ bearer, body: { reason }, internal, params: { message }, user }) => {
-                    if (!internal && !user!.council && !Object.values(user!.guilds).some((x) => x.staff && x.roles.includes("banshares")))
+                    if (!internal && !user!.council && !Object.values(user!.guilds).some((x) => x.staff))
                         throw new APIError(403, codes.FORBIDDEN, "You must be a council member or a staff with the banshares role to access this route.");
 
                     const doc = await db.banshares.findOneAndUpdate({ message }, { $push: { reports: { reporter: user!.id, reason } } as any });

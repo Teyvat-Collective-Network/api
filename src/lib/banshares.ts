@@ -33,7 +33,7 @@ export async function checkBansharePermissions({ internal, params: { guild }, us
         throw new APIError(404, codes.MISSING_GUILD, internal ? "This guild is not in the TCN." : `No guild exists with ID ${guild}.`);
     else if (!internal && !user!.observer) {
         const obj = user!.guilds[guild];
-        if (!(obj?.owner || obj?.advisor || (obj?.staff && obj?.roles.includes("banshares"))))
+        if (!(obj?.owner || obj?.advisor || obj?.staff))
             throw new APIError(
                 403,
                 codes.FORBIDDEN,
