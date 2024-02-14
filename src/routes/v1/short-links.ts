@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { App } from "../../lib/app.js";
-import { hasScope, isSignedIn, ratelimitApply, ratelimitCheck } from "../../lib/checkers.js";
+import { hasScope, isCouncil, isSignedIn, ratelimitApply, ratelimitCheck } from "../../lib/checkers.js";
 import codes from "../../lib/codes.js";
 import db from "../../lib/db.js";
 import { APIError } from "../../lib/errors.js";
@@ -15,7 +15,7 @@ export default (app: App) =>
                     return (await db.short_links.find({ user: user!.id }).toArray()).map((x: any) => [x.id, x.url]);
                 },
                 {
-                    beforeHandle: [isSignedIn, hasScope("short-links/read")],
+                    beforeHandle: [isSignedIn, isCouncil, hasScope("short-links/read")],
                     detail: {
                         tags: ["V1"],
                         summary: "Get all URLs owned by you.",
@@ -59,7 +59,7 @@ export default (app: App) =>
                     return (await db.short_links.countDocuments({ id, user: user!.id })) > 0;
                 },
                 {
-                    beforeHandle: [isSignedIn],
+                    beforeHandle: [isSignedIn, isCouncil],
                     detail: {
                         tags: ["V1"],
                         summary: "Determine if you own an ID.",
@@ -80,7 +80,7 @@ export default (app: App) =>
                     if (!doc) throw new APIError(404, codes.MISSING_SHORT_LINK, `No short link exists with ID ${id}, or it does not belong to you.`);
                 },
                 {
-                    beforeHandle: [isSignedIn, hasScope("short-links/delete")],
+                    beforeHandle: [isSignedIn, isCouncil, hasScope("short-links/delete")],
                     detail: {
                         tags: ["V1"],
                         summary: "Delete one of your URLs.",
@@ -126,7 +126,7 @@ export default (app: App) =>
                     }
                 },
                 {
-                    beforeHandle: [isSignedIn, hasScope("short-links/write"), ratelimitCheck("short-link/create", 10000, 2)],
+                    beforeHandle: [isSignedIn, isCouncil, hasScope("short-links/write"), ratelimitCheck("short-link/create", 10000, 2)],
                     afterHandle: [ratelimitApply("short-link/create")],
                     body: t.String(),
                     detail: {
