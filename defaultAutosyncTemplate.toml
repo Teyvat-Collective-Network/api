@@ -28,4 +28,9 @@ value = """The TCN is partnered with [Genshin Wizard](https://genshinwizard.com)
 [[embed.field]]
 name = "Genshin Impact Tavern"
 value = """The TCN is partnered with [Genshin Impact Tavern](https://discord.gg/genshinimpacttavern), a multifaceted Discord Community Server hosting a custom bot designed to emulate an "RPG-like" experience. This includes the earning of Mora (Server digital currency), a Vision, farming for weapons and upgrades with continuously expanding systems related to each. Mora can be redeemed to make use of several server functions, including redemption for Official Merchandise. Genshin Impact Tavern is also the proud host of the Cat's Tail Gathering TCG Tournament! _Genshin Impact Tavern is an officially endorsed server._"""
+
+[[embed.field]]
+name = "Daedalus"
+value = """The TCN is partnered with Daedalus, a general-purpose Discord bot that offers a high-quality server management experience. TCN servers get free access to the custom client feature. Check out [its website](https://daedalusbot.xyz) for more information!"""
+
 image = "https://i.imgur.com/U9Wqlug.png"
