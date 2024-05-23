@@ -5,8 +5,6 @@ import logger from "../lib/logger.js";
 import { PollResponse } from "../lib/types.js";
 
 async function run() {
-    console.log("running close-and-dm-polls task");
-    
     let dmed: ObjectId[] = [];
     let closed: ObjectId[] = [];
 
